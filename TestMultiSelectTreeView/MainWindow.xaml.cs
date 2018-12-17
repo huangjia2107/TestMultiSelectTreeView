@@ -104,9 +104,7 @@ namespace TestMultiSelectTreeView
 
             this.DataContext = null;
 
-            this.DataContext = _testSource;
-
-            ShowSelectedItems();
+            this.DataContext = _testSource; 
         }
 
         private void ShowSelectedItems()
@@ -119,7 +117,10 @@ namespace TestMultiSelectTreeView
                     s += (d as TestModel).Name + " | ";
                 }
 
-                Trace.TraceInformation(s.TrimEnd(" | ".ToCharArray()));
+                if (!string.IsNullOrEmpty(s))
+                    Trace.TraceInformation("SelectedItems = " + s.TrimEnd(" | ".ToCharArray()));
+                else
+                    Trace.TraceInformation("SelectedItems is empty.");
             }
         }
     }

@@ -168,7 +168,7 @@ namespace TestMultiSelectTreeView.Controls
             }
 
             treeViewItem.OnUnselected(new RoutedEventArgs(TreeViewItem.UnselectedEvent, treeViewItem));
-        } 
+        }
 
         #endregion
 
@@ -181,22 +181,13 @@ namespace TestMultiSelectTreeView.Controls
                 Focus();
 
                 if (e.ClickCount % 2 == 0)
-                {
-                    System.Diagnostics.Trace.TraceInformation("[ OnMouseLeftButtonDown ] Click Double");
-
                     this.IsExpanded = !this.IsExpanded;
-                    Select(true, false);
 
-                    e.Handled = true;
-                }
-                else
-                {
-                    System.Diagnostics.Trace.TraceInformation("[ OnMouseLeftButtonDown ] Click Single");
+                Select(IsControlKeyDown ? (!IsSelected) : true, IsControlKeyDown);
+                e.Handled = true;
 
-                    this.Select(IsControlKeyDown ? (!IsSelected) : true, IsControlKeyDown);
-                    e.Handled = true;
-                }
             }
+
             base.OnMouseLeftButtonDown(e);
         }
 
@@ -214,7 +205,7 @@ namespace TestMultiSelectTreeView.Controls
         }
 
         protected override void OnItemsChanged(NotifyCollectionChangedEventArgs e)
-        {  
+        {
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
@@ -223,6 +214,7 @@ namespace TestMultiSelectTreeView.Controls
                         return;
                     }
                 case NotifyCollectionChangedAction.Remove:
+                case NotifyCollectionChangedAction.Replace:
                     {
                         var treeView = this.ParentTreeView;
                         if (treeView == null)
@@ -237,18 +229,9 @@ namespace TestMultiSelectTreeView.Controls
                         if (treeView == null)
                             return;
 
-                        treeView.ClearItemsWithChildsSelection(this.Items);
+                        treeView.ResetSelectedItems();
                         return;
-                    }
-                case NotifyCollectionChangedAction.Replace:
-                    {
-                        var treeView = this.ParentTreeView;
-                        if (treeView == null)
-                            return;
-
-                        treeView.ClearItemsWithChildsSelection(e.OldItems);
-                        return;
-                    }
+                    } 
             }
 
             object[] action = new object[] { e.Action };
@@ -489,7 +472,7 @@ namespace TestMultiSelectTreeView.Controls
             var parentTreeView = this.ParentTreeView;
             var parentItemsControl = this.ParentItemsControl;
 
-            if (parentTreeView != null && parentItemsControl != null)
+            if (parentTreeView != null && parentItemsControl != null && !parentTreeView.IsChangingSelection)
             {
                 parentTreeView.ChangeSelection(GetItemOrContainerFromContainer(parentItemsControl, this), this, selected, isMultiSelectMode);
             }

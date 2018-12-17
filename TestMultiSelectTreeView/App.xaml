@@ -144,6 +144,6 @@
         <HierarchicalDataTemplate x:Key="ModelDataTemplateKey" ItemsSource="{Binding ModelCollection}">
             <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
         </HierarchicalDataTemplate>
-        
+
     </Application.Resources>
 </Application>
