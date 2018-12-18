@@ -61,13 +61,13 @@ namespace TestMultiSelectTreeView
             this.DataContext = _testSource;
         }
 
+        int j = 0;
         private void Add_Button_Click(object sender, RoutedEventArgs e)
         {
-            _testSource.ModelCollection[0].ModelCollection.Add(new TestModel { Name = "Test Add" });
+            _testSource.ModelCollection[0].ModelCollection.Add(new TestModel { Name = "Test Add " + j, IsSelected = true });
+            j++;
 
             _testSource.ItemsChangedFlag = !_testSource.ItemsChangedFlag;
-
-            ShowSelectedItems();
         }
 
         private void Delete_Button_Click(object sender, RoutedEventArgs e)
@@ -76,8 +76,6 @@ namespace TestMultiSelectTreeView
             {
                 _testSource.ModelCollection[0].ModelCollection.RemoveAt(0);
                 _testSource.ItemsChangedFlag = !_testSource.ItemsChangedFlag;
-
-                ShowSelectedItems();
             }
         }
 
@@ -90,13 +88,13 @@ namespace TestMultiSelectTreeView
             ShowSelectedItems();
         }
 
+        int i = 0;
         private void Replace_Button_Click(object sender, RoutedEventArgs e)
         {
-            _testSource.ModelCollection[1].ModelCollection[0] = new TestModel { Name = "Test Replace" };
+            _testSource.ModelCollection[1].ModelCollection[0] = new TestModel { Name = "Test Replace " + i, IsSelected = true };
+            i++;
 
             _testSource.ItemsChangedFlag = !_testSource.ItemsChangedFlag;
-
-            ShowSelectedItems();
         }
 
         private void Reset_Button_Click(object sender, RoutedEventArgs e)
@@ -104,7 +102,7 @@ namespace TestMultiSelectTreeView
 
             this.DataContext = null;
 
-            this.DataContext = _testSource; 
+            this.DataContext = _testSource;
         }
 
         private void ShowSelectedItems()

@@ -21,8 +21,9 @@ namespace TestMultiSelectTreeView.Controls
     {
         private ScrollViewer _scrollHost = null;
 
-        private List<MultiSelectTreeViewItem> _selectedContainers = null;
-        private List<object> _selectedItems = null;
+        private readonly Dictionary<MultiSelectTreeViewItem, object> _selectedElements = null;
+
+        private MultiSelectTreeViewItem _lastSelectedContainer = null;
 
         private static bool IsControlKeyDown
         {
@@ -32,11 +33,6 @@ namespace TestMultiSelectTreeView.Controls
         private static bool IsShiftKeyDown
         {
             get { return (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift; }
-        }
-
-        internal bool IsSelectedContainerHookedUp
-        {
-            get { return _selectedContainers.Count >= 0 && _selectedContainers.Any(c => c.ParentTreeView == this); }
         }
 
         #region Constructors
@@ -51,8 +47,7 @@ namespace TestMultiSelectTreeView.Controls
 
         public MultiSelectTreeView()
         {
-            _selectedContainers = new List<MultiSelectTreeViewItem>();
-            _selectedItems = new List<object>();
+            _selectedElements = new Dictionary<MultiSelectTreeViewItem, object>();
         }
 
         #endregion
@@ -86,14 +81,10 @@ namespace TestMultiSelectTreeView.Controls
 
         private void SetSelectedItems()
         {
+            SetValue(SelectedItemsPropertyKey, _selectedElements.Values.ToList());
+
             ShowSelectedItems();
-
-            if (SelectedItems != _selectedItems)
-            {
-                SetValue(SelectedItemsPropertyKey, _selectedItems);
-
-                //OnSelectedItemChanged(new RoutedPropertyChangedEventArgs<IList<object>>(selectedItem, obj, SelectedItemChangedEvent));
-            }
+            //OnSelectedItemChanged(new RoutedPropertyChangedEventArgs<IList<object>>(selectedItem, obj, SelectedItemChangedEvent));
         }
 
         private void ShowSelectedItems()
@@ -148,13 +139,13 @@ namespace TestMultiSelectTreeView.Controls
                 case NotifyCollectionChangedAction.Remove:
                 case NotifyCollectionChangedAction.Replace:
                     {
-                        ClearItemsWithChildsSelection(e.OldItems);
+                        RemoveItemsWithChildrenSelection(e.OldItems);
                         SetSelectedItems();
                         return;
                     }
                 case NotifyCollectionChangedAction.Reset:
                     {
-                        ResetSelectedItems();
+                        ResetSelectedElements();
                         SetSelectedItems();
                         return;
                     }
@@ -202,7 +193,7 @@ namespace TestMultiSelectTreeView.Controls
                             case Key.Up:
                             case Key.Down:
                                 {
-                                    if (this._selectedContainers.Count > 0 || !this.FocusFirstItem())
+                                    if (_selectedElements.Count > 0 || !this.FocusFirstItem())
                                     {
                                         break;
                                     }
@@ -334,13 +325,13 @@ namespace TestMultiSelectTreeView.Controls
         {
             if (!base.IsKeyboardFocusWithin)
             {
-                if (this._selectedContainers.Count == 0)
+                if (_selectedElements.Count == 0)
                 {
                     base.Focus();
                 }
-                else if (!this._selectedContainers.Any(c => c.IsKeyboardFocused))
+                else if (!_selectedElements.Any(e => e.Key.IsKeyboardFocused))
                 {
-                    this._selectedContainers[0].Focus();
+                    _selectedElements.First().Key.Focus();
                     return;
                 }
             }
@@ -429,125 +420,160 @@ namespace TestMultiSelectTreeView.Controls
 
         #endregion
 
-        #region Selection 
+        #region Selection
 
-        internal void ClearSelectedItems()
+        private void RefreshSelectedElements(ItemsControl itemsControl)
         {
-            _selectedContainers.Clear();
-            _selectedItems.Clear();
-        }
-
-        private void GetValidSelectedItems(IList items, List<object> validSelectedItems)
-        {
-            for (int i = 0; i < items.Count; i++)
+            if (itemsControl == null || itemsControl.Items == null || itemsControl.Items.Count == 0)
+                return;
+             
+            for (int i = 0; i < itemsControl.Items.Count; i++)
             {
-                var item = items[i];
-                var container = ItemContainerGenerator.ContainerFromItem(item) as MultiSelectTreeViewItem;
-
-                if (_selectedItems.Contains(item))
-                    validSelectedItems.Add(item);
+                var item = itemsControl.Items[i];
+                var container = itemsControl.ItemContainerGenerator.ContainerFromItem(item) as MultiSelectTreeViewItem;
 
                 if (container != null)
-                    GetValidSelectedItems(container.Items, validSelectedItems);
+                {
+                    if (container.IsSelected)
+                    {
+                        _selectedElements.Add(container, item); 
+                    }
+
+                    RefreshSelectedElements(container);
+                }
             }
         }
 
-        internal void ResetSelectedItems()
+        internal void ResetSelectedElements()
         {
-            if (Items == null || Items.Count == 0)
-            {
-                ClearSelectedItems();
+            _selectedElements.Clear(); 
+
+            RefreshSelectedElements(this);
+            SetSelectedItems();
+        }
+
+        internal void RemoveItemsWithChildrenSelection(IList items)
+        {
+            if (items == null || items.Count == 0)
                 return;
-            }
 
-            var validSelectedItems = new List<object>();
-            GetValidSelectedItems(Items, validSelectedItems);
-
-            if (validSelectedItems.Count != _selectedItems.Count)
+            var flag = false;
+            for (int i = 0; i < _selectedElements.Count; i++)
             {
-                for (int i = 0; i < _selectedItems.Count; i++)
+                var kvp = _selectedElements.ElementAt(i);
+
+                var itemsControl = ItemsControl.ItemsControlFromItemContainer(kvp.Key);
+                if (itemsControl == null)
                 {
-                    var item = _selectedItems[i];
-                    if (!validSelectedItems.Contains(item))
-                    {
-                        _selectedItems.RemoveAt(i);
+                    _selectedElements.Remove(kvp.Key);
+                    i--;
 
-                        var container = ItemContainerGenerator.ContainerFromItem(item) as MultiSelectTreeViewItem;
-
-                        if (_selectedContainers.Contains(container))
-                            _selectedContainers.Remove(container);
-
-                        i--;
-                    }
+                    flag = true;
                 }
             }
 
-            validSelectedItems.Clear();
+            if (flag)
+                SetSelectedItems();
         }
 
-        internal void ClearItemsWithChildsSelection(IList oldItems)
+        private void SelectRange(double topOffset, double bottomOffset, ItemsControl itemsControl)
         {
-            if (oldItems == null || oldItems.Count == 0)
+            if (itemsControl == null || itemsControl.Items == null || itemsControl.Items.Count == 0)
                 return;
 
-            for (int i = 0; i < oldItems.Count; i++)
+            for (int i = 0; i < itemsControl.Items.Count; i++)
             {
-                var item = oldItems[i];
-                var container = ItemContainerGenerator.ContainerFromItem(item) as MultiSelectTreeViewItem;
-
-                if (_selectedItems.Contains(item))
-                    _selectedItems.Remove(item);
-
-                if (_selectedContainers.Contains(container))
-                    _selectedContainers.Remove(container);
+                var item = itemsControl.Items[i];
+                var container = itemsControl.ItemContainerGenerator.ContainerFromItem(item) as MultiSelectTreeViewItem;
 
                 if (container != null)
-                    ClearItemsWithChildsSelection(container.Items);
+                {
+                    var curOffset = container.TranslatePoint(new Point(), this).Y;
+                    if (DoubleUtil.LessThanOrClose(curOffset, bottomOffset) && DoubleUtil.GreaterThanOrClose(curOffset, topOffset))
+                    {
+                        container.IsSelected = true;
+
+                        if (!_selectedElements.ContainsKey(container))
+                            _selectedElements.Add(container, item);
+                    }
+                    else
+                    {
+                        container.IsSelected = false;
+
+                        if (_selectedElements.ContainsKey(container))
+                            _selectedElements.Remove(container);
+                    }
+
+                    SelectRange(topOffset, bottomOffset, container);
+                }
             }
+        }
+
+        private void SelectRange(MultiSelectTreeViewItem beginContainer, MultiSelectTreeViewItem endContainer)
+        {
+            if (Items == null || Items.Count == 0)
+                return;
+
+            var beginYOffset = beginContainer == null ? 0d : beginContainer.TranslatePoint(new Point(), this).Y;
+            var endYOffset = endContainer == null ? 0d : endContainer.TranslatePoint(new Point(), this).Y;
+
+            var topOffset = Math.Min(beginYOffset, endYOffset);
+            var bottomOffset = Math.Max(beginYOffset, endYOffset);
+
+            SelectRange(topOffset, bottomOffset, this);
         }
 
         internal bool IsChangingSelection { get; private set; }
 
-        internal void ChangeSelection(object data, MultiSelectTreeViewItem container, bool selected, bool isMultiSelectMode)
+        internal void ChangeSelection(object data, MultiSelectTreeViewItem container, bool selected, SelectionMode selectionMode)
         {
             IsChangingSelection = true;
             bool flag = false;
 
             if (selected)
             {
-                if (!isMultiSelectMode)
+                if (selectionMode == SelectionMode.Single)
                 {
-                    _selectedContainers.ForEach(c => c.IsSelected = false);
-                    ClearSelectedItems();
+                    foreach (var kvp in _selectedElements)
+                    {
+                        kvp.Key.IsSelected = false;
+                    }
+
+                    _selectedElements.Clear();
                 }
 
-                if (!_selectedContainers.Contains(container))
+                if (selectionMode == SelectionMode.Extended)
                 {
-                    container.IsSelected = true;
-                    _selectedContainers.Add(container);
-
+                    SelectRange(_lastSelectedContainer, container);
                     flag = true;
                 }
-
-                if (!_selectedItems.Contains(data))
+                else
                 {
-                    _selectedItems.Add(data);
-                    flag = true;
+                    if (!_selectedElements.ContainsKey(container))
+                    {
+                        container.IsSelected = true;
+                        _selectedElements.Add(container, data);
+
+                        flag = true;
+                    }
                 }
             }
-            else if (_selectedContainers.Contains(container))
+            else if (_selectedElements.ContainsKey(container))
             {
                 container.IsSelected = false;
-                _selectedContainers.Remove(container);
-
-                if (_selectedItems.Contains(data))
-                    _selectedItems.Remove(data);
+                _selectedElements.Remove(container);
 
                 flag = true;
             }
 
             if (flag)
             {
+                if (selected && selectionMode != SelectionMode.Extended)
+                    _lastSelectedContainer = _selectedElements.Count == 0 ? null : _selectedElements.Last().Key;
+
+                if (!selected)
+                    _lastSelectedContainer = container;
+
                 SetSelectedItems();
             }
 
@@ -555,11 +581,6 @@ namespace TestMultiSelectTreeView.Controls
         }
 
         #endregion
-
-        private enum Bits
-        {
-            IsSelectionChangeActive = 1
-        }
 
         private struct ContainerSize
         {

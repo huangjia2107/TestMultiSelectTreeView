@@ -159,7 +159,7 @@ namespace TestMultiSelectTreeView.Controls
             var treeViewItem = (MultiSelectTreeViewItem)d;
             var newValue = (bool)e.NewValue;
 
-            treeViewItem.Select(newValue, true);
+            treeViewItem.Select(newValue, SelectionMode.Multiple);
 
             if (newValue)
             {
@@ -174,6 +174,17 @@ namespace TestMultiSelectTreeView.Controls
 
         #region Override
 
+        private SelectionMode GetSelectionMode()
+        {
+            if (IsControlKeyDown)
+                return SelectionMode.Multiple;
+
+            if (IsShiftKeyDown)
+                return SelectionMode.Extended;
+
+            return SelectionMode.Single;
+        }
+
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
         {
             if (!e.Handled && IsEnabled)
@@ -183,7 +194,7 @@ namespace TestMultiSelectTreeView.Controls
                 if (e.ClickCount % 2 == 0)
                     this.IsExpanded = !this.IsExpanded;
 
-                Select(IsControlKeyDown ? (!IsSelected) : true, IsControlKeyDown);
+                Select(IsControlKeyDown ? (!IsSelected) : true, GetSelectionMode());
                 e.Handled = true;
 
             }
@@ -197,10 +208,11 @@ namespace TestMultiSelectTreeView.Controls
             {
                 Focus();
 
-                this.Select(true, false);
+                Select(true, SelectionMode.Single);
                 e.Handled = true;
 
             }
+
             base.OnMouseLeftButtonDown(e);
         }
 
@@ -217,21 +229,21 @@ namespace TestMultiSelectTreeView.Controls
                 case NotifyCollectionChangedAction.Replace:
                     {
                         var treeView = this.ParentTreeView;
-                        if (treeView == null)
+                        if (treeView == null || this.Items.Count == 0 && (e.OldItems == null || e.OldItems.Count == 0))
                             return;
 
-                        treeView.ClearItemsWithChildsSelection(e.OldItems);
+                        treeView.RemoveItemsWithChildrenSelection(e.OldItems);
                         return;
                     }
                 case NotifyCollectionChangedAction.Reset:
                     {
                         var treeView = this.ParentTreeView;
-                        if (treeView == null)
+                        if (treeView == null || this.Items.Count == 0)
                             return;
 
-                        treeView.ResetSelectedItems();
+                        treeView.ResetSelectedElements();
                         return;
-                    } 
+                    }
             }
 
             object[] action = new object[] { e.Action };
@@ -353,6 +365,11 @@ namespace TestMultiSelectTreeView.Controls
             get { return (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control; }
         }
 
+        private static bool IsShiftKeyDown
+        {
+            get { return (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift; }
+        }
+
         private static void OnMouseButtonDown(object sender, MouseButtonEventArgs e)
         {
             var parentTreeView = ((MultiSelectTreeViewItem)sender).ParentTreeView;
@@ -467,14 +484,14 @@ namespace TestMultiSelectTreeView.Controls
             return obj;
         }
 
-        private void Select(bool selected, bool isMultiSelectMode)
+        private void Select(bool selected, SelectionMode selectionMode)
         {
             var parentTreeView = this.ParentTreeView;
             var parentItemsControl = this.ParentItemsControl;
 
             if (parentTreeView != null && parentItemsControl != null && !parentTreeView.IsChangingSelection)
             {
-                parentTreeView.ChangeSelection(GetItemOrContainerFromContainer(parentItemsControl, this), this, selected, isMultiSelectMode);
+                parentTreeView.ChangeSelection(GetItemOrContainerFromContainer(parentItemsControl, this), this, selected, selectionMode);
             }
         }
 
