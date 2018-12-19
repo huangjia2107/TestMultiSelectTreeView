@@ -116,10 +116,20 @@ namespace TestMultiSelectTreeView
                 }
 
                 if (!string.IsNullOrEmpty(s))
-                    Trace.TraceInformation("SelectedItems = " + s.TrimEnd(" | ".ToCharArray()));
+                    System.Diagnostics.Trace.TraceInformation("Time = {0}, SelectedItems = {1}", DateTime.Now.ToString("HH:mm:ss,fff"), s.TrimEnd(" | ".ToCharArray()));
                 else
-                    Trace.TraceInformation("SelectedItems is empty.");
+                    System.Diagnostics.Trace.TraceInformation("Time = {0}, SelectedItems is empty", DateTime.Now.ToString("HH:mm:ss,fff"));
             }
+        }
+
+        private void treeView_SelectedItemsChanged(object sender, RoutedPropertyChangedEventArgs<System.Collections.IList> e)
+        {
+            ShowSelectedItems();
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            (treeView.ItemContainerGenerator.ContainerFromIndex(treeView.Items.Count -1) as FrameworkElement).BringIntoView();
         }
     }
 }

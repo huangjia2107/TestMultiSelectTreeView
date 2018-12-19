@@ -15,10 +15,11 @@
             <Button Height="30" Width="50" Content="Move" VerticalAlignment="Center" Click="Move_Button_Click"/>
             <Button Height="30" Width="50" Content="Replace" VerticalAlignment="Center" Click="Replace_Button_Click"/>
             <Button Height="30" Width="50" Content="Reset" VerticalAlignment="Center" Click="Reset_Button_Click"/>
+            <Button Height="30" Width="50" Content="Test" VerticalAlignment="Center" Click="Button_Click" />
         </UniformGrid>
 
 
         <controls:MultiSelectTreeView x:Name="treeView" Grid.Row="1" ItemsSource="{Binding ModelCollection}" Background="White" Margin="10"
-                  ItemTemplate="{StaticResource ModelDataTemplateKey}"/>
+                  ItemTemplate="{StaticResource ModelDataTemplateKey}" SelectedItemsChanged="treeView_SelectedItemsChanged" />
     </Grid> 
 </Window>

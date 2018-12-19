@@ -46,6 +46,13 @@ namespace TestMultiSelectTreeView
             set { _isSelected = value; InvokePropertyChanged("IsSelected"); }
         }
 
+        private bool _isVisible = true;
+        public bool IsVisible
+        {
+            get { return _isVisible; }
+            set { _isVisible = value; InvokePropertyChanged("IsSelected"); }
+        }
+
         public ObservableCollection<TestModel> ModelCollection { get; set; }
     }
 }

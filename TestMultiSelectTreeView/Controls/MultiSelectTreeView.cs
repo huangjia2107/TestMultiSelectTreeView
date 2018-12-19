@@ -16,24 +16,16 @@ using System.Windows.Data;
 namespace TestMultiSelectTreeView.Controls
 {
     [StyleTypedProperty(Property = "ItemContainerStyle", StyleTargetType = typeof(MultiSelectTreeViewItem))]
-    [TemplatePart(Name = "PART_ScrollHost", Type = typeof(ScrollViewer))]
+    [TemplatePart(Name = ScrollHostPartName, Type = typeof(ScrollViewer))]
     public class MultiSelectTreeView : ItemsControl
     {
+        private const string ScrollHostPartName = "PART_ScrollHost";
         private ScrollViewer _scrollHost = null;
 
         private readonly Dictionary<MultiSelectTreeViewItem, object> _selectedElements = null;
-
         private MultiSelectTreeViewItem _lastSelectedContainer = null;
 
-        private static bool IsControlKeyDown
-        {
-            get { return (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control; }
-        }
-
-        private static bool IsShiftKeyDown
-        {
-            get { return (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift; }
-        }
+        internal bool IsChangingSelection { get; private set; }
 
         #region Constructors
 
@@ -54,14 +46,14 @@ namespace TestMultiSelectTreeView.Controls
 
         #region Events
 
-        public static readonly RoutedEvent SelectedItemsChangedEvent = EventManager.RegisterRoutedEvent("SelectedItemsChanged", RoutingStrategy.Bubble, typeof(RoutedPropertyChangedEventHandler<IList<object>>), typeof(MultiSelectTreeView));
-        public event RoutedPropertyChangedEventHandler<IList<object>> SelectedItemsChanged
+        public static readonly RoutedEvent SelectedItemsChangedEvent = EventManager.RegisterRoutedEvent("SelectedItemsChanged", RoutingStrategy.Bubble, typeof(RoutedPropertyChangedEventHandler<IList>), typeof(MultiSelectTreeView));
+        public event RoutedPropertyChangedEventHandler<IList> SelectedItemsChanged
         {
             add { AddHandler(SelectedItemsChangedEvent, value); }
             remove { RemoveHandler(SelectedItemsChangedEvent, value); }
         }
 
-        protected virtual void OnSelectedItemsChanged(RoutedPropertyChangedEventArgs<IList<object>> e)
+        protected virtual void OnSelectedItemsChanged(RoutedPropertyChangedEventArgs<IList> e)
         {
             RaiseEvent(e);
         }
@@ -81,27 +73,10 @@ namespace TestMultiSelectTreeView.Controls
 
         private void SetSelectedItems()
         {
+            var oldSelectedItems = SelectedItems;
             SetValue(SelectedItemsPropertyKey, _selectedElements.Values.ToList());
 
-            ShowSelectedItems();
-            //OnSelectedItemChanged(new RoutedPropertyChangedEventArgs<IList<object>>(selectedItem, obj, SelectedItemChangedEvent));
-        }
-
-        private void ShowSelectedItems()
-        {
-            if (SelectedItems != null)
-            {
-                string s = string.Empty;
-                foreach (var d in SelectedItems)
-                {
-                    s += (d as TestModel).Name + " | ";
-                }
-
-                if (!string.IsNullOrEmpty(s))
-                    System.Diagnostics.Trace.TraceInformation("Time = {0}, SelectedItems = {1}", DateTime.Now.ToString("HH:mm:ss,fff"), s.TrimEnd(" | ".ToCharArray()));
-                else
-                    System.Diagnostics.Trace.TraceInformation("SelectedItems is empty");
-            }
+            OnSelectedItemsChanged(new RoutedPropertyChangedEventArgs<IList>(oldSelectedItems, SelectedItems, SelectedItemsChangedEvent));
         }
 
         #endregion
@@ -112,7 +87,7 @@ namespace TestMultiSelectTreeView.Controls
         {
             base.OnApplyTemplate();
 
-            _scrollHost = GetTemplateChild("PART_ScrollHost") as ScrollViewer;
+            _scrollHost = GetTemplateChild(ScrollHostPartName) as ScrollViewer;
         }
 
         //创建容器前都用这个方法检查它是不是就是容器本身
@@ -155,179 +130,43 @@ namespace TestMultiSelectTreeView.Controls
             throw new NotSupportedException("UnexpectedCollectionChangeAction" + action);
         }
 
-        protected override void OnKeyDown(KeyEventArgs e)
-        {
-            base.OnKeyDown(e);
-            if (!e.Handled)
-            {
-                if (!IsControlKeyDown)
-                {
-                    Key key = e.Key;
-                    if (key != Key.Tab)
-                    {
-                        switch (key)
-                        {
-                            case Key.End:
-                                {
-                                    if (!this.FocusLastItem())
-                                    {
-                                        break;
-                                    }
-                                    e.Handled = true;
-                                    return;
-                                }
-                            case Key.Home:
-                                {
-                                    if (!this.FocusFirstItem())
-                                    {
-                                        break;
-                                    }
-                                    e.Handled = true;
-                                    return;
-                                }
-                            case Key.Left:
-                            case Key.Right:
-                                {
-                                    break;
-                                }
-                            case Key.Up:
-                            case Key.Down:
-                                {
-                                    if (_selectedElements.Count > 0 || !this.FocusFirstItem())
-                                    {
-                                        break;
-                                    }
-                                    e.Handled = true;
-                                    return;
-                                }
-                            default:
-                                {
-                                    return;
-                                }
-                        }
-                    }
-                    else if (IsShiftKeyDown && base.IsKeyboardFocusWithin && this.MoveFocus(new TraversalRequest(FocusNavigationDirection.Previous)))
-                    {
-                        e.Handled = true;
-                    }
-                }
-                else
-                {
-                    switch (e.Key)
-                    {
-                        case Key.Prior:
-                        case Key.Next:
-                        case Key.End:
-                        case Key.Home:
-                        case Key.Left:
-                        case Key.Up:
-                        case Key.Right:
-                        case Key.Down:
-                            {
-                                if (!this.HandleScrollKeys(e.Key))
-                                {
-                                    break;
-                                }
-                                e.Handled = true;
-                                return;
-                            }
-                        default:
-                            {
-                                return;
-                            }
-                    }
-                }
-            }
-        }
+
 
         #endregion
 
-        #region Func
+        #region Focus Func
 
-        private static DependencyObject FindParent(DependencyObject o)
+        internal bool FocusFirstItem()
         {
-            ContentElement contentElement;
-            Visual visual = o as Visual;
-
-            if (visual == null)
-                contentElement = o as ContentElement;
-            else
-                contentElement = null;
-
-            ContentElement contentElement1 = contentElement;
-            if (contentElement1 != null)
-            {
-                o = ContentOperations.GetParent(contentElement1);
-                if (o != null)
-                    return o;
-
-                FrameworkContentElement frameworkContentElement = contentElement1 as FrameworkContentElement;
-                if (frameworkContentElement != null)
-                {
-                    return frameworkContentElement.Parent;
-                }
-            }
-            else if (visual != null)
-                return VisualTreeHelper.GetParent(visual);
-
-            return null;
-        }
-
-        private bool FocusFirstItem()
-        {
-            var treeViewItem = base.ItemContainerGenerator.ContainerFromIndex(0) as MultiSelectTreeViewItem;
+            var treeViewItem = ItemContainerGenerator.ContainerFromIndex(0) as MultiSelectTreeViewItem;
             if (treeViewItem == null)
                 return false;
 
-            if (treeViewItem.IsEnabled && treeViewItem.Focus())
+            if (treeViewItem.IsEnabled && treeViewItem.IsVisible && treeViewItem.Focus())
                 return true;
 
             return treeViewItem.FocusDown();
         }
 
-        private bool FocusLastItem()
+        internal bool FocusLastItem()
         {
             for (int i = base.Items.Count - 1; i >= 0; i--)
             {
-                var treeViewItem = base.ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
-                if (treeViewItem != null && treeViewItem.IsEnabled)
+                var treeViewItem = ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
+                if (treeViewItem != null && treeViewItem.IsEnabled && treeViewItem.IsVisible)
                     return MultiSelectTreeViewItem.FocusIntoItem(treeViewItem);
             }
 
             return false;
         }
 
-        private bool GetFirstVisibleItem(ref object item, ref MultiSelectTreeViewItem container)
-        {
-            if (!base.HasItems)
-            {
-                item = null;
-                container = null;
-                return false;
-            }
-
-            for (int i = 0; i < Items.Count; i++)
-            {
-                container = ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
-                if (container.Visibility != Visibility.Visible)
-                    continue;
-
-                item = Items[i];
-            }
-
-            if (item == null)
-                return false;
-
-            return container != null;
-        }
-
         internal void HandleMouseButtonDown()
         {
-            if (!base.IsKeyboardFocusWithin)
+            if (!IsKeyboardFocusWithin)
             {
                 if (_selectedElements.Count == 0)
                 {
-                    base.Focus();
+                    Focus();
                 }
                 else if (!_selectedElements.Any(e => e.Key.IsKeyboardFocused))
                 {
@@ -337,106 +176,23 @@ namespace TestMultiSelectTreeView.Controls
             }
         }
 
-        private bool HandleScrollKeys(Key key)
-        {
-            ScrollViewer scrollHost = _scrollHost;
-            if (scrollHost != null)
-            {
-                bool flowDirection = base.FlowDirection == FlowDirection.RightToLeft;
-                switch (key)
-                {
-                    case Key.Prior:
-                        {
-                            if (!DoubleUtil.GreaterThan(scrollHost.ExtentHeight, scrollHost.ViewportHeight))
-                            {
-                                scrollHost.PageLeft();
-                            }
-                            else
-                            {
-                                scrollHost.PageUp();
-                            }
-                            return true;
-                        }
-                    case Key.Next:
-                        {
-                            if (!DoubleUtil.GreaterThan(scrollHost.ExtentHeight, scrollHost.ViewportHeight))
-                            {
-                                scrollHost.PageRight();
-                            }
-                            else
-                            {
-                                scrollHost.PageDown();
-                            }
-                            return true;
-                        }
-                    case Key.End:
-                        {
-                            scrollHost.ScrollToBottom();
-                            return true;
-                        }
-                    case Key.Home:
-                        {
-                            scrollHost.ScrollToTop();
-                            return true;
-                        }
-                    case Key.Left:
-                        {
-                            if (!flowDirection)
-                            {
-                                scrollHost.LineLeft();
-                            }
-                            else
-                            {
-                                scrollHost.LineRight();
-                            }
-                            return true;
-                        }
-                    case Key.Up:
-                        {
-                            scrollHost.LineUp();
-                            return true;
-                        }
-                    case Key.Right:
-                        {
-                            if (!flowDirection)
-                            {
-                                scrollHost.LineRight();
-                            }
-                            else
-                            {
-                                scrollHost.LineLeft();
-                            }
-                            return true;
-                        }
-                    case Key.Down:
-                        {
-                            scrollHost.LineDown();
-                            return true;
-                        }
-                }
-            }
-            return false;
-        }
-
         #endregion
 
         #region Selection
 
         private void RefreshSelectedElements(ItemsControl itemsControl)
         {
-            if (itemsControl == null || itemsControl.Items == null || itemsControl.Items.Count == 0)
+            if (itemsControl == null || !itemsControl.HasItems)
                 return;
-             
+
             for (int i = 0; i < itemsControl.Items.Count; i++)
             {
-                var item = itemsControl.Items[i];
-                var container = itemsControl.ItemContainerGenerator.ContainerFromItem(item) as MultiSelectTreeViewItem;
-
+                var container = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
                 if (container != null)
                 {
                     if (container.IsSelected)
                     {
-                        _selectedElements.Add(container, item); 
+                        _selectedElements.Add(container, itemsControl.Items[i]);
                     }
 
                     RefreshSelectedElements(container);
@@ -446,7 +202,7 @@ namespace TestMultiSelectTreeView.Controls
 
         internal void ResetSelectedElements()
         {
-            _selectedElements.Clear(); 
+            _selectedElements.Clear();
 
             RefreshSelectedElements(this);
             SetSelectedItems();
@@ -478,15 +234,13 @@ namespace TestMultiSelectTreeView.Controls
 
         private void SelectRange(double topOffset, double bottomOffset, ItemsControl itemsControl)
         {
-            if (itemsControl == null || itemsControl.Items == null || itemsControl.Items.Count == 0)
+            if (itemsControl == null || !itemsControl.HasItems)
                 return;
 
             for (int i = 0; i < itemsControl.Items.Count; i++)
             {
-                var item = itemsControl.Items[i];
-                var container = itemsControl.ItemContainerGenerator.ContainerFromItem(item) as MultiSelectTreeViewItem;
-
-                if (container != null)
+                var container = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
+                if (container != null && container.IsEnabled && container.IsVisible)
                 {
                     var curOffset = container.TranslatePoint(new Point(), this).Y;
                     if (DoubleUtil.LessThanOrClose(curOffset, bottomOffset) && DoubleUtil.GreaterThanOrClose(curOffset, topOffset))
@@ -494,7 +248,7 @@ namespace TestMultiSelectTreeView.Controls
                         container.IsSelected = true;
 
                         if (!_selectedElements.ContainsKey(container))
-                            _selectedElements.Add(container, item);
+                            _selectedElements.Add(container, itemsControl.Items[i]);
                     }
                     else
                     {
@@ -503,6 +257,9 @@ namespace TestMultiSelectTreeView.Controls
                         if (_selectedElements.ContainsKey(container))
                             _selectedElements.Remove(container);
                     }
+
+                    if (!container.IsExpanded || !container.HasItems)
+                        continue;
 
                     SelectRange(topOffset, bottomOffset, container);
                 }
@@ -522,9 +279,7 @@ namespace TestMultiSelectTreeView.Controls
 
             SelectRange(topOffset, bottomOffset, this);
         }
-
-        internal bool IsChangingSelection { get; private set; }
-
+         
         internal void ChangeSelection(object data, MultiSelectTreeViewItem container, bool selected, SelectionMode selectionMode)
         {
             IsChangingSelection = true;
@@ -581,24 +336,6 @@ namespace TestMultiSelectTreeView.Controls
         }
 
         #endregion
-
-        private struct ContainerSize
-        {
-            public double Size;
-
-            public uint NumContainers;
-
-            public ContainerSize(double size)
-            {
-                this.Size = size;
-                this.NumContainers = 1;
-            }
-
-            public bool IsCloseTo(ContainerSize size)
-            {
-                return Math.Abs(this.Size - size.Size) < 0.5;
-            }
-        }
     }
 }
 
