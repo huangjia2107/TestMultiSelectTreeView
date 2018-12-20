@@ -85,7 +85,7 @@ namespace TestMultiSelectTreeView
 
             _testSource.ItemsChangedFlag = !_testSource.ItemsChangedFlag;
 
-            ShowSelectedItems();
+            ShowSelectedItems(true);
         }
 
         int i = 0;
@@ -99,13 +99,12 @@ namespace TestMultiSelectTreeView
 
         private void Reset_Button_Click(object sender, RoutedEventArgs e)
         {
-
             this.DataContext = null;
 
             this.DataContext = _testSource;
         }
 
-        private void ShowSelectedItems()
+        private void ShowSelectedItems(bool isFromMove)
         {
             if (treeView.SelectedItems != null)
             {
@@ -116,20 +115,20 @@ namespace TestMultiSelectTreeView
                 }
 
                 if (!string.IsNullOrEmpty(s))
-                    System.Diagnostics.Trace.TraceInformation("Time = {0}, SelectedItems = {1}", DateTime.Now.ToString("HH:mm:ss,fff"), s.TrimEnd(" | ".ToCharArray()));
+                    System.Diagnostics.Trace.TraceInformation("Time = {0}, Move = {1}, SelectedItems = {2}", DateTime.Now.ToString("HH:mm:ss,fff"), isFromMove, s.TrimEnd(" | ".ToCharArray()));
                 else
-                    System.Diagnostics.Trace.TraceInformation("Time = {0}, SelectedItems is empty", DateTime.Now.ToString("HH:mm:ss,fff"));
+                    System.Diagnostics.Trace.TraceInformation("Time = {0}, Move = {1}, SelectedItems is empty", DateTime.Now.ToString("HH:mm:ss,fff"), isFromMove);
             }
         }
 
         private void treeView_SelectedItemsChanged(object sender, RoutedPropertyChangedEventArgs<System.Collections.IList> e)
         {
-            ShowSelectedItems();
+            ShowSelectedItems(false);
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            (treeView.ItemContainerGenerator.ContainerFromIndex(treeView.Items.Count -1) as FrameworkElement).BringIntoView();
+            (treeView.ItemContainerGenerator.ContainerFromIndex(treeView.Items.Count - 1) as FrameworkElement).BringIntoView();
         }
     }
 }

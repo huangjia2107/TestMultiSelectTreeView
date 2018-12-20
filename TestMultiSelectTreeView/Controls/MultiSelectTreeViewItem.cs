@@ -10,6 +10,7 @@ using System.Windows.Automation.Peers;
 using System.Windows.Media;
 using TestMultiSelectTreeView.Helps;
 using System.Collections.Specialized;
+using System.Collections;
 
 namespace TestMultiSelectTreeView.Controls
 {
@@ -65,7 +66,6 @@ namespace TestMultiSelectTreeView.Controls
             KeyboardNavigation.TabNavigationProperty.OverrideMetadata(typeof(MultiSelectTreeViewItem), new FrameworkPropertyMetadata((object)KeyboardNavigationMode.None));
 
             EventManager.RegisterClassHandler(typeof(MultiSelectTreeViewItem), FrameworkElement.RequestBringIntoViewEvent, new RequestBringIntoViewEventHandler(OnRequestBringIntoView));
-            EventManager.RegisterClassHandler(typeof(MultiSelectTreeViewItem), Mouse.MouseDownEvent, new MouseButtonEventHandler(OnMouseButtonDown), true);
         }
 
         #region Event
@@ -121,6 +121,14 @@ namespace TestMultiSelectTreeView.Controls
                 return;
             }
 
+            if (treeViewItem.ContainSelection())
+            {
+                if (treeViewItem.IsKeyboardFocused && Keyboard.FocusedElement == treeViewItem)
+                    treeViewItem.Select(true, SelectionMode.Single);
+                else
+                    treeViewItem.Focus();
+            }
+
             treeViewItem.OnCollapsed(new RoutedEventArgs(TreeViewItem.CollapsedEvent, treeViewItem));
         }
 
@@ -167,25 +175,25 @@ namespace TestMultiSelectTreeView.Controls
         protected override DependencyObject GetContainerForItemOverride()
         {
             return new MultiSelectTreeViewItem();
-        }
+        } 
 
         protected override void OnItemsChanged(NotifyCollectionChangedEventArgs e)
         {
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
-                case NotifyCollectionChangedAction.Move:
                     {
                         return;
                     }
-                case NotifyCollectionChangedAction.Remove:
+                case NotifyCollectionChangedAction.Move:
                 case NotifyCollectionChangedAction.Replace:
+                    { 
+                        RemoveSelectedElementsWithInvalidContainer(e.OldItems, false);
+                        return;
+                    }
+                case NotifyCollectionChangedAction.Remove:
                     {
-                        var parentTreeView = ParentTreeView;
-                        if (parentTreeView == null || !HasItems && (e.OldItems == null || e.OldItems.Count == 0))
-                            return;
-
-                        parentTreeView.RemoveItemsWithChildrenSelection(e.OldItems);
+                        RemoveSelectedElementsWithInvalidContainer(e.OldItems, true);
                         return;
                     }
                 case NotifyCollectionChangedAction.Reset:
@@ -207,17 +215,13 @@ namespace TestMultiSelectTreeView.Controls
         {
             if (!e.Handled && IsEnabled)
             {
-                Focus();
+                if (e.ClickCount % 2 == 0)
+                    IsExpanded = !IsExpanded;
 
-                if (e.ClickCount > 1)
-                {
-                    this.IsExpanded = !this.IsExpanded;
-                }
-                else
-                {
-                    if (IsControlKeyDown || IsShiftKeyDown || !IsSelected || IsSelected && ParentTreeView.SelectedItems.Count > 1)
-                        Select(IsControlKeyDown ? (!IsSelected) : true, GetSelectionMode());
-                }
+                if (Keyboard.FocusedElement == this && this.IsKeyboardFocused)
+                    Select(IsControlKeyDown ? (!IsSelected) : true, GetSelectionMode());
+
+                Focus();
 
                 e.Handled = true;
             }
@@ -230,8 +234,6 @@ namespace TestMultiSelectTreeView.Controls
             if (!e.Handled && IsEnabled)
             {
                 Focus();
-
-                Select(true, SelectionMode.Single);
                 e.Handled = true;
             }
 
@@ -240,7 +242,14 @@ namespace TestMultiSelectTreeView.Controls
 
         protected override void OnGotFocus(RoutedEventArgs e)
         {
-            Select(true, GetSelectionMode());
+            if (Mouse.RightButton == MouseButtonState.Pressed)
+            {
+                if (ParentTreeView.SelectedItems.Count <= 1 || !IsSelected)
+                    Select(true, SelectionMode.Single);
+            }
+            else
+                Select(IsControlKeyDown ? (!IsSelected) : true, GetSelectionMode());
+
             base.OnGotFocus(e);
         }
 
@@ -369,15 +378,6 @@ namespace TestMultiSelectTreeView.Controls
         private static bool IsShiftKeyDown
         {
             get { return (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift; }
-        }
-
-        private static void OnMouseButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            var parentTreeView = ((MultiSelectTreeViewItem)sender).ParentTreeView;
-            if (parentTreeView != null)
-            {
-                parentTreeView.HandleMouseButtonDown();
-            }
         }
 
         private static void OnRequestBringIntoView(object sender, RequestBringIntoViewEventArgs e)
@@ -574,6 +574,24 @@ namespace TestMultiSelectTreeView.Controls
 
         #region Func
 
+        private bool ContainSelection()
+        {
+            if (!HasItems)
+                return false;
+
+            for (int i = 0; i < Items.Count; i++)
+            {
+                var container = ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
+                if (container != null)
+                {
+                    if (container.IsSelected || container.ContainSelection())
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
         private SelectionMode GetSelectionMode()
         {
             if (IsControlKeyDown)
@@ -583,6 +601,15 @@ namespace TestMultiSelectTreeView.Controls
                 return SelectionMode.Extended;
 
             return SelectionMode.Single;
+        }
+
+        private void RemoveSelectedElementsWithInvalidContainer(IList oldItems, bool isUpdateSelection)
+        {
+            var parentTreeView = ParentTreeView;
+            if (parentTreeView == null || !HasItems && (oldItems == null || oldItems.Count == 0))
+                return;
+
+            parentTreeView.RemoveSelectedElementsWithInvalidContainer(isUpdateSelection);
         }
 
         private object GetItemOrContainerFromContainer(ItemsControl itemsControl, DependencyObject container)

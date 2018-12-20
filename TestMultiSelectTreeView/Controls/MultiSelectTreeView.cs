@@ -23,7 +23,8 @@ namespace TestMultiSelectTreeView.Controls
         private ScrollViewer _scrollHost = null;
 
         private readonly Dictionary<MultiSelectTreeViewItem, object> _selectedElements = null;
-        private MultiSelectTreeViewItem _lastSelectedContainer = null;
+        private List<MultiSelectTreeViewItem> _lastSelectedContainers = null;
+        private MultiSelectTreeViewItem _latestSelectedContainer = null;
 
         internal bool IsChangingSelection { get; private set; }
 
@@ -73,7 +74,19 @@ namespace TestMultiSelectTreeView.Controls
 
         private void SetSelectedItems()
         {
+            var selectedContainers = _selectedElements.Keys.ToList();
+            if ((_lastSelectedContainers == null || _lastSelectedContainers.Count == 0) && selectedContainers.Count == 0)
+                return;
+
+            if (_lastSelectedContainers != null && _lastSelectedContainers.Count == selectedContainers.Count)
+            {
+                if (_lastSelectedContainers.Except(selectedContainers).Count() == 0)
+                    return;
+            }
+
             var oldSelectedItems = SelectedItems;
+            _lastSelectedContainers = selectedContainers;
+
             SetValue(SelectedItemsPropertyKey, _selectedElements.Values.ToList());
 
             OnSelectedItemsChanged(new RoutedPropertyChangedEventArgs<IList>(oldSelectedItems, SelectedItems, SelectedItemsChangedEvent));
@@ -107,21 +120,23 @@ namespace TestMultiSelectTreeView.Controls
             switch (e.Action)
             {
                 case NotifyCollectionChangedAction.Add:
+                    {
+                        return;
+                    }
                 case NotifyCollectionChangedAction.Move:
                     {
+                        RemoveSelectedElementsWithInvalidContainer(false); 
                         return;
                     }
                 case NotifyCollectionChangedAction.Remove:
                 case NotifyCollectionChangedAction.Replace:
                     {
-                        RemoveItemsWithChildrenSelection(e.OldItems);
-                        SetSelectedItems();
+                        RemoveSelectedElementsWithInvalidContainer(true); 
                         return;
                     }
                 case NotifyCollectionChangedAction.Reset:
                     {
-                        ResetSelectedElements();
-                        SetSelectedItems();
+                        ResetSelectedElements(); 
                         return;
                     }
             }
@@ -158,23 +173,7 @@ namespace TestMultiSelectTreeView.Controls
             }
 
             return false;
-        }
-
-        internal void HandleMouseButtonDown()
-        {
-            if (!IsKeyboardFocusWithin)
-            {
-                if (_selectedElements.Count == 0)
-                {
-                    Focus();
-                }
-                else if (!_selectedElements.Any(e => e.Key.IsKeyboardFocused))
-                {
-                    _selectedElements.First().Key.Focus();
-                    return;
-                }
-            }
-        }
+        } 
 
         #endregion
 
@@ -208,11 +207,8 @@ namespace TestMultiSelectTreeView.Controls
             SetSelectedItems();
         }
 
-        internal void RemoveItemsWithChildrenSelection(IList items)
+        internal void RemoveSelectedElementsWithInvalidContainer(bool isUpdateSelection)
         {
-            if (items == null || items.Count == 0)
-                return;
-
             var flag = false;
             for (int i = 0; i < _selectedElements.Count; i++)
             {
@@ -228,7 +224,7 @@ namespace TestMultiSelectTreeView.Controls
                 }
             }
 
-            if (flag)
+            if (flag && isUpdateSelection)
                 SetSelectedItems();
         }
 
@@ -279,7 +275,7 @@ namespace TestMultiSelectTreeView.Controls
 
             SelectRange(topOffset, bottomOffset, this);
         }
-         
+
         internal void ChangeSelection(object data, MultiSelectTreeViewItem container, bool selected, SelectionMode selectionMode)
         {
             IsChangingSelection = true;
@@ -299,7 +295,7 @@ namespace TestMultiSelectTreeView.Controls
 
                 if (selectionMode == SelectionMode.Extended)
                 {
-                    SelectRange(_lastSelectedContainer, container);
+                    SelectRange(_latestSelectedContainer, container);
                     flag = true;
                 }
                 else
@@ -324,10 +320,10 @@ namespace TestMultiSelectTreeView.Controls
             if (flag)
             {
                 if (selected && selectionMode != SelectionMode.Extended)
-                    _lastSelectedContainer = _selectedElements.Count == 0 ? null : _selectedElements.Last().Key;
+                    _latestSelectedContainer = _selectedElements.Count == 0 ? null : _selectedElements.Last().Key;
 
                 if (!selected)
-                    _lastSelectedContainer = container;
+                    _latestSelectedContainer = container;
 
                 SetSelectedItems();
             }
