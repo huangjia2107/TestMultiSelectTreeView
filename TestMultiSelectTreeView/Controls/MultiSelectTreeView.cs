@@ -124,19 +124,25 @@ namespace TestMultiSelectTreeView.Controls
                         return;
                     }
                 case NotifyCollectionChangedAction.Move:
+                case NotifyCollectionChangedAction.Replace:
                     {
-                        RemoveSelectedElementsWithInvalidContainer(false); 
+                        if (!HasItems && (e.OldItems == null || e.OldItems.Count == 0))
+                            return;
+
+                        RemoveSelectedElementsWithInvalidContainer(false);
                         return;
                     }
                 case NotifyCollectionChangedAction.Remove:
-                case NotifyCollectionChangedAction.Replace:
                     {
-                        RemoveSelectedElementsWithInvalidContainer(true); 
+                        if (!HasItems && (e.OldItems == null || e.OldItems.Count == 0))
+                            return;
+
+                        RemoveSelectedElementsWithInvalidContainer(true);
                         return;
                     }
                 case NotifyCollectionChangedAction.Reset:
                     {
-                        ResetSelectedElements(); 
+                        ResetSelectedElements();
                         return;
                     }
             }
@@ -173,7 +179,7 @@ namespace TestMultiSelectTreeView.Controls
             }
 
             return false;
-        } 
+        }
 
         #endregion
 
