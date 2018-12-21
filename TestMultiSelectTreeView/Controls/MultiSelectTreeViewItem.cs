@@ -73,29 +73,29 @@ namespace TestMultiSelectTreeView.Controls
         public readonly static RoutedEvent ExpandedEvent = EventManager.RegisterRoutedEvent("Expanded", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(MultiSelectTreeViewItem));
         public event RoutedEventHandler Expanded
         {
-            add { base.AddHandler(TreeViewItem.ExpandedEvent, value); }
-            remove { base.RemoveHandler(TreeViewItem.ExpandedEvent, value); }
+            add { AddHandler(MultiSelectTreeViewItem.ExpandedEvent, value); }
+            remove { RemoveHandler(MultiSelectTreeViewItem.ExpandedEvent, value); }
         }
 
         public readonly static RoutedEvent CollapsedEvent = EventManager.RegisterRoutedEvent("Collapsed", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(MultiSelectTreeViewItem));
         public event RoutedEventHandler Collapsed
         {
-            add { base.AddHandler(TreeViewItem.CollapsedEvent, value); }
-            remove { base.RemoveHandler(TreeViewItem.CollapsedEvent, value); }
+            add { AddHandler(MultiSelectTreeViewItem.CollapsedEvent, value); }
+            remove { RemoveHandler(MultiSelectTreeViewItem.CollapsedEvent, value); }
         }
 
         public readonly static RoutedEvent SelectedEvent = EventManager.RegisterRoutedEvent("Selected", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(MultiSelectTreeViewItem));
         public event RoutedEventHandler Selected
         {
-            add { base.AddHandler(TreeViewItem.SelectedEvent, value); }
-            remove { base.RemoveHandler(TreeViewItem.SelectedEvent, value); }
+            add { AddHandler(MultiSelectTreeViewItem.SelectedEvent, value); }
+            remove { RemoveHandler(MultiSelectTreeViewItem.SelectedEvent, value); }
         }
 
         public readonly static RoutedEvent UnselectedEvent = EventManager.RegisterRoutedEvent("Unselected", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(MultiSelectTreeViewItem));
         public event RoutedEventHandler Unselected
         {
-            add { base.AddHandler(TreeViewItem.UnselectedEvent, value); }
-            remove { base.RemoveHandler(TreeViewItem.UnselectedEvent, value); }
+            add { AddHandler(MultiSelectTreeViewItem.UnselectedEvent, value); }
+            remove { RemoveHandler(MultiSelectTreeViewItem.UnselectedEvent, value); }
         }
 
         #endregion
@@ -117,7 +117,7 @@ namespace TestMultiSelectTreeView.Controls
 
             if (newValue)
             {
-                treeViewItem.OnExpanded(new RoutedEventArgs(TreeViewItem.ExpandedEvent, treeViewItem));
+                treeViewItem.OnExpanded(new RoutedEventArgs(MultiSelectTreeViewItem.ExpandedEvent, treeViewItem));
                 return;
             }
 
@@ -129,7 +129,7 @@ namespace TestMultiSelectTreeView.Controls
                     treeViewItem.Focus();
             }
 
-            treeViewItem.OnCollapsed(new RoutedEventArgs(TreeViewItem.CollapsedEvent, treeViewItem));
+            treeViewItem.OnCollapsed(new RoutedEventArgs(MultiSelectTreeViewItem.CollapsedEvent, treeViewItem));
         }
 
         public static readonly DependencyProperty IsSelectedProperty =
@@ -149,11 +149,11 @@ namespace TestMultiSelectTreeView.Controls
 
             if (newValue)
             {
-                treeViewItem.OnSelected(new RoutedEventArgs(TreeViewItem.SelectedEvent, treeViewItem));
+                treeViewItem.OnSelected(new RoutedEventArgs(MultiSelectTreeViewItem.SelectedEvent, treeViewItem));
                 return;
             }
 
-            treeViewItem.OnUnselected(new RoutedEventArgs(TreeViewItem.UnselectedEvent, treeViewItem));
+            treeViewItem.OnUnselected(new RoutedEventArgs(MultiSelectTreeViewItem.UnselectedEvent, treeViewItem));
         }
 
         #endregion
@@ -175,40 +175,24 @@ namespace TestMultiSelectTreeView.Controls
         protected override DependencyObject GetContainerForItemOverride()
         {
             return new MultiSelectTreeViewItem();
-        } 
+        }
 
-        protected override void OnItemsChanged(NotifyCollectionChangedEventArgs e)
+        //called before a container is used
+        protected override void PrepareContainerForItemOverride(DependencyObject element, object item)
         {
-            switch (e.Action)
-            {
-                case NotifyCollectionChangedAction.Add:
-                    {
-                        return;
-                    }
-                case NotifyCollectionChangedAction.Move:
-                case NotifyCollectionChangedAction.Replace:
-                    { 
-                        RemoveSelectedElementsWithInvalidContainer(e.OldItems, false);
-                        return;
-                    }
-                case NotifyCollectionChangedAction.Remove:
-                    {
-                        RemoveSelectedElementsWithInvalidContainer(e.OldItems, true);
-                        return;
-                    }
-                case NotifyCollectionChangedAction.Reset:
-                    {
-                        var parentTreeView = ParentTreeView;
-                        if (parentTreeView == null || !HasItems)
-                            return;
+            base.PrepareContainerForItemOverride(element, item); 
+        }
 
-                        parentTreeView.ResetSelectedElements();
-                        return;
-                    }
-            }
+        //called when a container is thrown away or recycled
+        protected override void ClearContainerForItemOverride(DependencyObject element, object item)
+        {
+            base.ClearContainerForItemOverride(element, item);
 
-            object[] action = new object[] { e.Action };
-            throw new NotSupportedException("UnexpectedCollectionChangeAction, " + action);
+            var container = element as MultiSelectTreeViewItem;
+            var parentTreeView = ParentTreeView;
+
+            if (container != null && parentTreeView != null)
+                parentTreeView.RemoveSelectedElement(container, true);
         }
 
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)

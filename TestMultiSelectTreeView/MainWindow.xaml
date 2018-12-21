@@ -7,6 +7,8 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="40"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <UniformGrid Rows="1">
@@ -19,7 +21,24 @@
         </UniformGrid>
 
 
-        <controls:MultiSelectTreeView x:Name="treeView" Grid.Row="1" ItemsSource="{Binding ModelCollection}" Background="White" Margin="10"
-                  ItemTemplate="{StaticResource ModelDataTemplateKey}" SelectedItemsChanged="treeView_SelectedItemsChanged" />
+        <controls:MultiSelectTreeView x:Name="treeView" Grid.Row="1" ItemsSource="{Binding ModelCollection}" Background="White" Margin="10" SelectionMode="Extended"
+                  ItemTemplate="{StaticResource ModelDataTemplateKey}" SelectedItemChanged="treeView_SelectedItemsChanged" />
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="10,10,10,0">
+            <TextBlock Text="{Binding SelectedIndex,ElementName=listBox}" Margin="0,0,30,0"/>
+            <TextBlock Text="{Binding SelectedItem.Name,ElementName=listBox}"/>
+        </StackPanel>
+        <ListBox x:Name="listBox" Grid.Row="3" Margin="10" ItemsSource="{Binding ModelCollection}" SelectionMode="Extended">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
+                </Style>
+            </ListBox.ItemContainerStyle>
+        </ListBox>
     </Grid> 
 </Window>

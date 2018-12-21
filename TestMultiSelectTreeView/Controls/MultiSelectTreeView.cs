@@ -19,11 +19,22 @@ namespace TestMultiSelectTreeView.Controls
     [TemplatePart(Name = ScrollHostPartName, Type = typeof(ScrollViewer))]
     public class MultiSelectTreeView : ItemsControl
     {
+        class ContainerItemPair
+        {
+            public MultiSelectTreeViewItem Container { get; set; }
+            public object Item { get; set; }
+
+            public ContainerItemPair(MultiSelectTreeViewItem container, object item)
+            {
+                Container = container;
+                Item = item;
+            }
+        }
+
         private const string ScrollHostPartName = "PART_ScrollHost";
         private ScrollViewer _scrollHost = null;
 
-        private readonly Dictionary<MultiSelectTreeViewItem, object> _selectedElements = null;
-        private List<MultiSelectTreeViewItem> _lastSelectedContainers = null;
+        private readonly List<ContainerItemPair> _selectedElements = null;
         private MultiSelectTreeViewItem _latestSelectedContainer = null;
 
         internal bool IsChangingSelection { get; private set; }
@@ -40,21 +51,21 @@ namespace TestMultiSelectTreeView.Controls
 
         public MultiSelectTreeView()
         {
-            _selectedElements = new Dictionary<MultiSelectTreeViewItem, object>();
+            _selectedElements = new List<ContainerItemPair>();
         }
 
         #endregion
 
         #region Events
 
-        public static readonly RoutedEvent SelectedItemsChangedEvent = EventManager.RegisterRoutedEvent("SelectedItemsChanged", RoutingStrategy.Bubble, typeof(RoutedPropertyChangedEventHandler<IList>), typeof(MultiSelectTreeView));
-        public event RoutedPropertyChangedEventHandler<IList> SelectedItemsChanged
+        public static readonly RoutedEvent SelectedItemChangedEvent = EventManager.RegisterRoutedEvent("SelectedItemChanged", RoutingStrategy.Bubble, typeof(RoutedPropertyChangedEventHandler<object>), typeof(MultiSelectTreeView));
+        public event RoutedPropertyChangedEventHandler<object> SelectedItemChanged
         {
-            add { AddHandler(SelectedItemsChangedEvent, value); }
-            remove { RemoveHandler(SelectedItemsChangedEvent, value); }
+            add { AddHandler(SelectedItemChangedEvent, value); }
+            remove { RemoveHandler(SelectedItemChangedEvent, value); }
         }
 
-        protected virtual void OnSelectedItemsChanged(RoutedPropertyChangedEventArgs<IList> e)
+        protected virtual void OnSelectedItemChanged(RoutedPropertyChangedEventArgs<object> e)
         {
             RaiseEvent(e);
         }
@@ -63,8 +74,25 @@ namespace TestMultiSelectTreeView.Controls
 
         #region Properties
 
+        public static readonly DependencyProperty SelectionModeProperty =
+            DependencyProperty.Register("SelectionMode", typeof(SelectionMode), typeof(MultiSelectTreeView), new UIPropertyMetadata(SelectionMode.Extended));
+        public SelectionMode SelectionMode
+        {
+            get { return (SelectionMode)GetValue(SelectionModeProperty); }
+            set { SetValue(SelectionModeProperty, value); }
+        }
+
+        private readonly static DependencyPropertyKey SelectedItemPropertyKey =
+            DependencyProperty.RegisterReadOnly("SelectedItem", typeof(object), typeof(MultiSelectTreeView), new FrameworkPropertyMetadata(null));
+
+        public readonly static DependencyProperty SelectedItemProperty = SelectedItemPropertyKey.DependencyProperty;
+        public object SelectedItem
+        {
+            get { return GetValue(TreeView.SelectedItemProperty); }
+        }
+
         private static readonly DependencyPropertyKey SelectedItemsPropertyKey =
-                DependencyProperty.RegisterReadOnly("SelectedItems", typeof(IList), typeof(MultiSelectTreeView), new FrameworkPropertyMetadata((IList)null));
+            DependencyProperty.RegisterReadOnly("SelectedItems", typeof(IList), typeof(MultiSelectTreeView), new FrameworkPropertyMetadata((IList)null));
 
         private static readonly DependencyProperty SelectedItemsProperty = SelectedItemsPropertyKey.DependencyProperty;
         public IList SelectedItems
@@ -74,22 +102,16 @@ namespace TestMultiSelectTreeView.Controls
 
         private void SetSelectedItems()
         {
-            var selectedContainers = _selectedElements.Keys.ToList();
-            if ((_lastSelectedContainers == null || _lastSelectedContainers.Count == 0) && selectedContainers.Count == 0)
-                return;
+            var newSelecedItem = (_selectedElements == null || _selectedElements.Count == 0) ? null : _selectedElements[0].Item;
+            var oldSelectedItem = (SelectedItems == null || SelectedItems.Count == 0) ? null : SelectedItems[0];
 
-            if (_lastSelectedContainers != null && _lastSelectedContainers.Count == selectedContainers.Count)
+            SetValue(SelectedItemsPropertyKey, _selectedElements.Select(p => p.Item).ToList());
+
+            if (oldSelectedItem != newSelecedItem)
             {
-                if (_lastSelectedContainers.Except(selectedContainers).Count() == 0)
-                    return;
+                SetValue(SelectedItemPropertyKey, newSelecedItem);
+                OnSelectedItemChanged(new RoutedPropertyChangedEventArgs<object>(oldSelectedItem, newSelecedItem, SelectedItemChangedEvent));
             }
-
-            var oldSelectedItems = SelectedItems;
-            _lastSelectedContainers = selectedContainers;
-
-            SetValue(SelectedItemsPropertyKey, _selectedElements.Values.ToList());
-
-            OnSelectedItemsChanged(new RoutedPropertyChangedEventArgs<IList>(oldSelectedItems, SelectedItems, SelectedItemsChangedEvent));
         }
 
         #endregion
@@ -115,43 +137,22 @@ namespace TestMultiSelectTreeView.Controls
             return new MultiSelectTreeViewItem();
         }
 
-        protected override void OnItemsChanged(NotifyCollectionChangedEventArgs e)
+        //called before a container is used
+        protected override void PrepareContainerForItemOverride(DependencyObject element, object item)
         {
-            switch (e.Action)
-            {
-                case NotifyCollectionChangedAction.Add:
-                    {
-                        return;
-                    }
-                case NotifyCollectionChangedAction.Move:
-                case NotifyCollectionChangedAction.Replace:
-                    {
-                        if (!HasItems && (e.OldItems == null || e.OldItems.Count == 0))
-                            return;
-
-                        RemoveSelectedElementsWithInvalidContainer(false);
-                        return;
-                    }
-                case NotifyCollectionChangedAction.Remove:
-                    {
-                        if (!HasItems && (e.OldItems == null || e.OldItems.Count == 0))
-                            return;
-
-                        RemoveSelectedElementsWithInvalidContainer(true);
-                        return;
-                    }
-                case NotifyCollectionChangedAction.Reset:
-                    {
-                        ResetSelectedElements();
-                        return;
-                    }
-            }
-
-            object[] action = new object[] { e.Action };
-            throw new NotSupportedException("UnexpectedCollectionChangeAction" + action);
+            base.PrepareContainerForItemOverride(element, item);
         }
 
+        //called when a container is thrown away or recycled
+        protected override void ClearContainerForItemOverride(DependencyObject element, object item)
+        {
+            base.ClearContainerForItemOverride(element, item);
 
+            var container = element as MultiSelectTreeViewItem;
+
+            if (container != null)
+                RemoveSelectedElement(container, true);
+        }
 
         #endregion
 
@@ -196,9 +197,7 @@ namespace TestMultiSelectTreeView.Controls
                 if (container != null)
                 {
                     if (container.IsSelected)
-                    {
-                        _selectedElements.Add(container, itemsControl.Items[i]);
-                    }
+                        _selectedElements.Add(new ContainerItemPair(container, itemsControl.Items[i]));
 
                     RefreshSelectedElements(container);
                 }
@@ -213,17 +212,82 @@ namespace TestMultiSelectTreeView.Controls
             SetSelectedItems();
         }
 
+        private bool RemoveFromSelectedElements(MultiSelectTreeViewItem treeViewItem)
+        {
+            var index = _selectedElements.FindIndex(p => p.Container == treeViewItem);
+
+            if (index >= 0)
+            {
+                if (treeViewItem.IsSelected)
+                    treeViewItem.IsSelected = false;
+
+                _selectedElements.RemoveAt(index);
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool AddToSelectedElements(MultiSelectTreeViewItem treeViewItem, object item)
+        {
+            var index = _selectedElements.FindIndex(p => p.Container == treeViewItem);
+
+            if (index < 0)
+            {
+                if (!treeViewItem.IsSelected)
+                    treeViewItem.IsSelected = true;
+
+                _selectedElements.Add(new ContainerItemPair(treeViewItem, item));
+                return true;
+            }
+
+            return false;
+        }
+
+        private void ForearchTreeViewItem(MultiSelectTreeViewItem treeViewItem, bool walkIntoSubtree, Action<MultiSelectTreeViewItem> doAction)
+        {
+            if (doAction != null)
+                doAction(treeViewItem);
+
+            if (!treeViewItem.HasItems || !walkIntoSubtree)
+                return;
+
+            for (int i = 0; i < treeViewItem.Items.Count; i++)
+            {
+                var container = treeViewItem.ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
+                if (container != null && doAction != null)
+                {
+                    doAction(container);
+                    ForearchTreeViewItem(container, walkIntoSubtree, doAction);
+                }
+            }
+        }
+
+        internal void RemoveSelectedElement(MultiSelectTreeViewItem treeViewItem, bool walkIntoSubtree)
+        {
+            bool flag = false;
+            ForearchTreeViewItem(treeViewItem, walkIntoSubtree,
+                container =>
+                {
+                    if (RemoveFromSelectedElements(container))
+                        flag = true;
+                });
+
+            if (flag)
+                SetSelectedItems();
+        }
+
         internal void RemoveSelectedElementsWithInvalidContainer(bool isUpdateSelection)
         {
             var flag = false;
             for (int i = 0; i < _selectedElements.Count; i++)
             {
-                var kvp = _selectedElements.ElementAt(i);
+                var pair = _selectedElements[i];
 
-                var itemsControl = ItemsControl.ItemsControlFromItemContainer(kvp.Key);
+                var itemsControl = ItemsControl.ItemsControlFromItemContainer(pair.Container);
                 if (itemsControl == null)
                 {
-                    _selectedElements.Remove(kvp.Key);
+                    _selectedElements.RemoveAt(i);
                     i--;
 
                     flag = true;
@@ -247,17 +311,17 @@ namespace TestMultiSelectTreeView.Controls
                     var curOffset = container.TranslatePoint(new Point(), this).Y;
                     if (DoubleUtil.LessThanOrClose(curOffset, bottomOffset) && DoubleUtil.GreaterThanOrClose(curOffset, topOffset))
                     {
-                        container.IsSelected = true;
+                        if (!container.IsSelected)
+                            container.IsSelected = true;
 
-                        if (!_selectedElements.ContainsKey(container))
-                            _selectedElements.Add(container, itemsControl.Items[i]);
+                        AddToSelectedElements(container, itemsControl.Items[i]);
                     }
                     else
                     {
-                        container.IsSelected = false;
+                        if (container.IsSelected)
+                            container.IsSelected = false;
 
-                        if (_selectedElements.ContainsKey(container))
-                            _selectedElements.Remove(container);
+                        RemoveFromSelectedElements(container);
                     }
 
                     if (!container.IsExpanded || !container.HasItems)
@@ -287,46 +351,49 @@ namespace TestMultiSelectTreeView.Controls
             IsChangingSelection = true;
             bool flag = false;
 
+            var mode = SelectionMode == SelectionMode.Multiple ? SelectionMode.Multiple : (SelectionMode)Math.Min((int)SelectionMode, (int)selectionMode);
+
             if (selected)
             {
-                if (selectionMode == SelectionMode.Single)
+                if (mode == SelectionMode.Single)
                 {
-                    foreach (var kvp in _selectedElements)
-                    {
-                        kvp.Key.IsSelected = false;
-                    }
-
+                    _selectedElements.ForEach(p => p.Container.IsSelected = false);
                     _selectedElements.Clear();
                 }
 
-                if (selectionMode == SelectionMode.Extended)
+                if (mode == SelectionMode.Extended)
                 {
                     SelectRange(_latestSelectedContainer, container);
                     flag = true;
                 }
                 else
                 {
-                    if (!_selectedElements.ContainsKey(container))
+                    var pair = _selectedElements.FirstOrDefault(p => p.Container == container);
+                    if (pair == null)
                     {
-                        container.IsSelected = true;
-                        _selectedElements.Add(container, data);
+                        if (!container.IsSelected)
+                            container.IsSelected = true;
 
+                        _selectedElements.Add(new ContainerItemPair(container, data));
+                        flag = true;
+                    }
+                    else if (pair.Item != data)
+                    {
+                        pair.Item = data;
                         flag = true;
                     }
                 }
             }
-            else if (_selectedElements.ContainsKey(container))
+            else
             {
-                container.IsSelected = false;
-                _selectedElements.Remove(container);
-
-                flag = true;
+                if (RemoveFromSelectedElements(container))
+                    flag = true;
             }
 
             if (flag)
             {
-                if (selected && selectionMode != SelectionMode.Extended)
-                    _latestSelectedContainer = _selectedElements.Count == 0 ? null : _selectedElements.Last().Key;
+                if (selected && mode != SelectionMode.Extended)
+                    _latestSelectedContainer = (_selectedElements == null || _selectedElements.Count == 0) ? null : _selectedElements.Last().Container;
 
                 if (!selected)
                     _latestSelectedContainer = container;

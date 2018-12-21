@@ -83,9 +83,7 @@ namespace TestMultiSelectTreeView
         {
             _testSource.ModelCollection[1].ModelCollection.Move(0, 2);
 
-            _testSource.ItemsChangedFlag = !_testSource.ItemsChangedFlag;
-
-            ShowSelectedItems(true);
+            _testSource.ItemsChangedFlag = !_testSource.ItemsChangedFlag; 
         }
 
         int i = 0;
@@ -104,7 +102,7 @@ namespace TestMultiSelectTreeView
             this.DataContext = _testSource;
         }
 
-        private void ShowSelectedItems(bool isFromMove)
+        private void ShowSelectedItems()
         {
             if (treeView.SelectedItems != null)
             {
@@ -115,20 +113,22 @@ namespace TestMultiSelectTreeView
                 }
 
                 if (!string.IsNullOrEmpty(s))
-                    System.Diagnostics.Trace.TraceInformation("Time = {0}, Move = {1}, SelectedItems = {2}", DateTime.Now.ToString("HH:mm:ss,fff"), isFromMove, s.TrimEnd(" | ".ToCharArray()));
+                    System.Diagnostics.Trace.TraceInformation("SelectedItems = {0}", s.TrimEnd(" | ".ToCharArray()));
                 else
-                    System.Diagnostics.Trace.TraceInformation("Time = {0}, Move = {1}, SelectedItems is empty", DateTime.Now.ToString("HH:mm:ss,fff"), isFromMove);
+                    System.Diagnostics.Trace.TraceInformation("SelectedItems is empty");
             }
         }
 
-        private void treeView_SelectedItemsChanged(object sender, RoutedPropertyChangedEventArgs<System.Collections.IList> e)
+        private void treeView_SelectedItemsChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
-            ShowSelectedItems(false);
+            System.Diagnostics.Trace.TraceInformation(" [ SelectedItem ] Item = {0}", e.NewValue == null ? "null" : (e.NewValue as TestModel).Name);
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
             (treeView.ItemContainerGenerator.ContainerFromIndex(treeView.Items.Count - 1) as FrameworkElement).BringIntoView();
+
+            ShowSelectedItems();
         }
     }
 }
