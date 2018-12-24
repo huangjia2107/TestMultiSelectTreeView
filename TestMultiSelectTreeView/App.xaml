@@ -8,8 +8,8 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Styles\ShareStyle.xaml"/>
                 
-                <!--<ResourceDictionary Source="Styles\MultiSelectTreeViewStyle.xaml"/>-->
-                <ResourceDictionary Source="Styles\TreeViewStyle.xaml"/>
+                <ResourceDictionary Source="Styles\MultiSelectTreeViewStyle.xaml"/>
+                <!--<ResourceDictionary Source="Styles\TreeViewStyle.xaml"/>-->
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
         

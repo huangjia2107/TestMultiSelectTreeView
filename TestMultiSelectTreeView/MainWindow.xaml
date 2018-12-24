@@ -9,7 +9,7 @@
             <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
 
         <UniformGrid Rows="1">
@@ -26,7 +26,7 @@
             <TextBlock Text="{Binding SelectedItem.Name,ElementName=treeView}" Margin="0,0,30,0"/>
 
             <TextBlock Text="Value:" Margin="0,0,5,0"/>
-            <TextBlock Text="{Binding SelectedValue,ElementName=treeView}"/>
+            <TextBlock Text="{Binding SelectedValue.Name,ElementName=treeView}"/>
         </StackPanel>
 
         <controls:MultiSelectTreeView x:Name="treeView" Grid.Row="2" ItemsSource="{Binding ModelCollection}" Background="White" Margin="10" SelectionMode="Extended"
@@ -40,9 +40,9 @@
             <TextBlock Text="{Binding SelectedItem.Name,ElementName=listBox}" Margin="0,0,30,0"/>
 
             <TextBlock Text="Value:" Margin="0,0,5,0"/>
-            <TextBlock Text="{Binding SelectedValue,ElementName=listBox}"/>
+            <TextBlock Text="{Binding SelectedValue.Name,ElementName=listBox}"/>
         </StackPanel>
-        <ListBox x:Name="listBox" Grid.Row="4" Margin="10" ItemsSource="{Binding ModelCollection}" SelectionMode="Extended">
+        <ListBox x:Name="listBox" Grid.Row="4" Height="90" Margin="10" ItemsSource="{Binding ModelCollection}" SelectionMode="Extended">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>

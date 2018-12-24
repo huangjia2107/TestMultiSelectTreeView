@@ -262,12 +262,13 @@ namespace TestMultiSelectTreeView.Controls
                         {
                             if (!this.LogicalLeft(e.Key))
                             {
-                                if (IsControlKeyDown || !CanExpandOnInput)
+                                if (IsControlKeyDown || !CanExpandOnInput || !_headerElement.IsVisible)
                                     break;
 
-                                if (!this.IsExpanded)
+                                if (!IsExpanded)
                                 {
-                                    this.IsExpanded = true;
+                                    IsExpanded = true;
+
                                     e.Handled = true;
                                     return;
                                 }
@@ -280,13 +281,13 @@ namespace TestMultiSelectTreeView.Controls
                             }
                             else
                             {
-                                if (IsControlKeyDown || !CanExpandOnInput || !this.IsExpanded)
+                                if (IsControlKeyDown || !CanExpandOnInput || !IsExpanded || !_headerElement.IsVisible)
                                     break;
 
                                 if (!IsFocused)
                                     Focus();
                                 else
-                                    this.IsExpanded = false;
+                                    IsExpanded = false;
 
                                 e.Handled = true;
                                 return;
