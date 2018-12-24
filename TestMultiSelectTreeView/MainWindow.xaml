@@ -2,10 +2,11 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:TestMultiSelectTreeView.Controls"
-       Title="MainWindow" Height="554" Width="784" Background="White">
+        Title="MainWindow" Height="554" Width="784" Background="White">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="40"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="*"/>
@@ -20,15 +21,28 @@
             <Button Height="30" Width="50" Content="Test" VerticalAlignment="Center" Click="Button_Click" />
         </UniformGrid>
 
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="10,10,10,0">
+            <TextBlock Text="Item:" Margin="0,0,5,0"/>
+            <TextBlock Text="{Binding SelectedItem.Name,ElementName=treeView}" Margin="0,0,30,0"/>
 
-        <controls:MultiSelectTreeView x:Name="treeView" Grid.Row="1" ItemsSource="{Binding ModelCollection}" Background="White" Margin="10" SelectionMode="Extended"
-                  ItemTemplate="{StaticResource ModelDataTemplateKey}" SelectedItemChanged="treeView_SelectedItemsChanged" />
-
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="10,10,10,0">
-            <TextBlock Text="{Binding SelectedIndex,ElementName=listBox}" Margin="0,0,30,0"/>
-            <TextBlock Text="{Binding SelectedItem.Name,ElementName=listBox}"/>
+            <TextBlock Text="Value:" Margin="0,0,5,0"/>
+            <TextBlock Text="{Binding SelectedValue,ElementName=treeView}"/>
         </StackPanel>
-        <ListBox x:Name="listBox" Grid.Row="3" Margin="10" ItemsSource="{Binding ModelCollection}" SelectionMode="Extended">
+
+        <controls:MultiSelectTreeView x:Name="treeView" Grid.Row="2" ItemsSource="{Binding ModelCollection}" Background="White" Margin="10" SelectionMode="Extended"
+                  ItemTemplate="{StaticResource ModelDataTemplateKey}" SelectionChanged="treeView_SelectionChanged" />
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="10,10,10,0">
+            <TextBlock Text="Index:" Margin="0,0,5,0"/>
+            <TextBlock Text="{Binding SelectedIndex,ElementName=listBox}" Margin="0,0,30,0"/>
+            
+            <TextBlock Text="Item:" Margin="0,0,5,0"/>
+            <TextBlock Text="{Binding SelectedItem.Name,ElementName=listBox}" Margin="0,0,30,0"/>
+
+            <TextBlock Text="Value:" Margin="0,0,5,0"/>
+            <TextBlock Text="{Binding SelectedValue,ElementName=listBox}"/>
+        </StackPanel>
+        <ListBox x:Name="listBox" Grid.Row="4" Margin="10" ItemsSource="{Binding ModelCollection}" SelectionMode="Extended">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>

@@ -12,6 +12,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using TestMultiSelectTreeView.Helps;
 using System.Windows.Data;
+using System.Xml;
 
 namespace TestMultiSelectTreeView.Controls
 {
@@ -33,6 +34,8 @@ namespace TestMultiSelectTreeView.Controls
 
         private const string ScrollHostPartName = "PART_ScrollHost";
         private ScrollViewer _scrollHost = null;
+
+        private Binding _selectedValueBinding = null;
 
         private readonly List<ContainerItemPair> _selectedElements = null;
         private MultiSelectTreeViewItem _latestSelectedContainer = null;
@@ -58,14 +61,14 @@ namespace TestMultiSelectTreeView.Controls
 
         #region Events
 
-        public static readonly RoutedEvent SelectedItemChangedEvent = EventManager.RegisterRoutedEvent("SelectedItemChanged", RoutingStrategy.Bubble, typeof(RoutedPropertyChangedEventHandler<object>), typeof(MultiSelectTreeView));
-        public event RoutedPropertyChangedEventHandler<object> SelectedItemChanged
+        public static readonly RoutedEvent SelectionChangedEvent = EventManager.RegisterRoutedEvent("SelectionChanged", RoutingStrategy.Bubble, typeof(RoutedPropertyChangedEventHandler<object>), typeof(MultiSelectTreeView));
+        public event RoutedPropertyChangedEventHandler<object> SelectionChanged
         {
-            add { AddHandler(SelectedItemChangedEvent, value); }
-            remove { RemoveHandler(SelectedItemChangedEvent, value); }
+            add { AddHandler(SelectionChangedEvent, value); }
+            remove { RemoveHandler(SelectionChangedEvent, value); }
         }
 
-        protected virtual void OnSelectedItemChanged(RoutedPropertyChangedEventArgs<object> e)
+        protected virtual void OnSelectionChanged(RoutedPropertyChangedEventArgs<object> e)
         {
             RaiseEvent(e);
         }
@@ -74,6 +77,7 @@ namespace TestMultiSelectTreeView.Controls
 
         #region Properties
 
+        //SelectionMode
         public static readonly DependencyProperty SelectionModeProperty =
             DependencyProperty.Register("SelectionMode", typeof(SelectionMode), typeof(MultiSelectTreeView), new UIPropertyMetadata(SelectionMode.Extended));
         public SelectionMode SelectionMode
@@ -82,15 +86,17 @@ namespace TestMultiSelectTreeView.Controls
             set { SetValue(SelectionModeProperty, value); }
         }
 
+        //SelectedItem
         private readonly static DependencyPropertyKey SelectedItemPropertyKey =
             DependencyProperty.RegisterReadOnly("SelectedItem", typeof(object), typeof(MultiSelectTreeView), new FrameworkPropertyMetadata(null));
 
         public readonly static DependencyProperty SelectedItemProperty = SelectedItemPropertyKey.DependencyProperty;
         public object SelectedItem
         {
-            get { return GetValue(TreeView.SelectedItemProperty); }
+            get { return GetValue(SelectedItemProperty); }
         }
 
+        //SelectedItems
         private static readonly DependencyPropertyKey SelectedItemsPropertyKey =
             DependencyProperty.RegisterReadOnly("SelectedItems", typeof(IList), typeof(MultiSelectTreeView), new FrameworkPropertyMetadata((IList)null));
 
@@ -100,18 +106,46 @@ namespace TestMultiSelectTreeView.Controls
             get { return (IList)GetValue(SelectedItemsProperty); }
         }
 
+        //SetSelectedItems
         private void SetSelectedItems()
         {
-            var newSelecedItem = (_selectedElements == null || _selectedElements.Count == 0) ? null : _selectedElements[0].Item;
+            var newSelectedItem = (_selectedElements == null || _selectedElements.Count == 0) ? null : _selectedElements[0].Item;
             var oldSelectedItem = (SelectedItems == null || SelectedItems.Count == 0) ? null : SelectedItems[0];
 
             SetValue(SelectedItemsPropertyKey, _selectedElements.Select(p => p.Item).ToList());
 
-            if (oldSelectedItem != newSelecedItem)
+            if (oldSelectedItem != newSelectedItem)
             {
-                SetValue(SelectedItemPropertyKey, newSelecedItem);
-                OnSelectedItemChanged(new RoutedPropertyChangedEventArgs<object>(oldSelectedItem, newSelecedItem, SelectedItemChangedEvent));
+                SetValue(SelectedItemPropertyKey, newSelectedItem);
+                UpdateSelectedValue(newSelectedItem);
+
+                OnSelectionChanged(new RoutedPropertyChangedEventArgs<object>(oldSelectedItem, newSelectedItem, SelectionChangedEvent));
             }
+        }
+
+        //SelectedValue
+        private readonly static DependencyProperty SelectedValueProperty = DependencyProperty.Register("SelectedValue", typeof(object), typeof(MultiSelectTreeView));
+        public object SelectedValue
+        {
+            get { return GetValue(SelectedValueProperty); }
+            private set { SetValue(SelectedValueProperty, value); }
+        }
+
+        //SelectedValuePath
+        public static readonly DependencyProperty SelectedValuePathProperty =
+            DependencyProperty.Register("SelectedValuePath", typeof(string), typeof(MultiSelectTreeView), new FrameworkPropertyMetadata(string.Empty, OnSelectedValuePathChanged));
+        public string SelectedValuePath
+        {
+            get { return (string)GetValue(SelectedValuePathProperty); }
+            set { SetValue(SelectedValuePathProperty, value); }
+        }
+
+        static void OnSelectedValuePathChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var treeView = (MultiSelectTreeView)d;
+
+            BindingOperations.ClearBinding(treeView, SelectedValuePathProperty);
+            treeView.UpdateSelectedValue(treeView.SelectedItem);
         }
 
         #endregion
@@ -125,13 +159,13 @@ namespace TestMultiSelectTreeView.Controls
             _scrollHost = GetTemplateChild(ScrollHostPartName) as ScrollViewer;
         }
 
-        //创建容器前都用这个方法检查它是不是就是容器本身
+        //check whether item is its own container before creating container
         protected override bool IsItemItsOwnContainerOverride(object item)
         {
             return item is MultiSelectTreeViewItem;
         }
 
-        //为Items中每一个item创建它的容器用于在UI上显示
+        //create container for every item in Items to show on UI
         protected override DependencyObject GetContainerForItemOverride()
         {
             return new MultiSelectTreeViewItem();
@@ -172,7 +206,7 @@ namespace TestMultiSelectTreeView.Controls
 
         internal bool FocusLastItem()
         {
-            for (int i = base.Items.Count - 1; i >= 0; i--)
+            for (int i = Items.Count - 1; i >= 0; i--)
             {
                 var treeViewItem = ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
                 if (treeViewItem != null && treeViewItem.IsEnabled && treeViewItem.IsVisible)
@@ -402,6 +436,63 @@ namespace TestMultiSelectTreeView.Controls
             }
 
             IsChangingSelection = false;
+        }
+
+        private void UpdateSelectedValue(object selectedItem)
+        {
+            var binding = PrepareSelectedValuePathBinding(selectedItem);
+            if (binding == null)
+            {
+                BindingOperations.ClearBinding(this, SelectedValueProperty);
+                SelectedValue = null;
+                return;
+            }
+
+            SetBinding(SelectedValueProperty, binding);
+        }
+
+        private bool IsXmlNode(object item)
+        {
+            if (item == null)
+                return false;
+
+            if (!item.GetType().FullName.StartsWith("System.Xml", StringComparison.Ordinal))
+                return false;
+
+            return item is XmlNode;
+        }
+
+        private Binding PrepareSelectedValuePathBinding(object item)
+        {
+            if (item == null)
+                return null;
+
+            var useXml = IsXmlNode(item);
+            var binding = _selectedValueBinding;
+
+            if (binding != null)
+            {
+                var usesXml = (binding.XPath != null);
+                if ((!usesXml && useXml) || (usesXml && !useXml) || binding.Source != item)
+                    binding = null;
+            }
+
+            if (binding == null)
+            {
+                binding = new Binding { Source = item };
+
+                if (!useXml)
+                    binding.Path = new PropertyPath(SelectedValuePath, new object[0]);
+                else
+                {
+                    binding.XPath = SelectedValuePath;
+                    binding.Path = new PropertyPath("/InnerText", new object[0]);
+                }
+
+                _selectedValueBinding = binding;
+            }
+
+            return binding;
         }
 
         #endregion

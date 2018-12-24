@@ -83,7 +83,7 @@ namespace TestMultiSelectTreeView
         {
             _testSource.ModelCollection[1].ModelCollection.Move(0, 2);
 
-            _testSource.ItemsChangedFlag = !_testSource.ItemsChangedFlag; 
+            _testSource.ItemsChangedFlag = !_testSource.ItemsChangedFlag;
         }
 
         int i = 0;
@@ -119,9 +119,9 @@ namespace TestMultiSelectTreeView
             }
         }
 
-        private void treeView_SelectedItemsChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
+        private void treeView_SelectionChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
-            System.Diagnostics.Trace.TraceInformation(" [ SelectedItem ] Item = {0}", e.NewValue == null ? "null" : (e.NewValue as TestModel).Name);
+            System.Diagnostics.Trace.TraceInformation(" [ Selection ] Item = {0}, Value = {1}", e.NewValue == null ? "null" : (e.NewValue as TestModel).Name, treeView.SelectedValue);
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

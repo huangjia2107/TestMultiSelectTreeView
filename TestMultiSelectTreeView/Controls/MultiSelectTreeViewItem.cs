@@ -180,7 +180,7 @@ namespace TestMultiSelectTreeView.Controls
         //called before a container is used
         protected override void PrepareContainerForItemOverride(DependencyObject element, object item)
         {
-            base.PrepareContainerForItemOverride(element, item); 
+            base.PrepareContainerForItemOverride(element, item);
         }
 
         //called when a container is thrown away or recycled
@@ -203,10 +203,9 @@ namespace TestMultiSelectTreeView.Controls
                     IsExpanded = !IsExpanded;
 
                 if (Keyboard.FocusedElement == this && this.IsKeyboardFocused)
-                    Select(IsControlKeyDown ? (!IsSelected) : true, GetSelectionMode());
+                    MouseLeftButtonDownSelect();
 
                 Focus();
-
                 e.Handled = true;
             }
 
@@ -217,22 +216,33 @@ namespace TestMultiSelectTreeView.Controls
         {
             if (!e.Handled && IsEnabled)
             {
+                var treeView = ParentTreeView;
+                if (treeView != null && treeView.SelectionMode == SelectionMode.Multiple && Keyboard.FocusedElement == this && this.IsKeyboardFocused)
+                    Select(!IsSelected, GetSelectionMode());
+
                 Focus();
                 e.Handled = true;
             }
 
             base.OnMouseLeftButtonDown(e);
-        }
+        } 
 
         protected override void OnGotFocus(RoutedEventArgs e)
         {
             if (Mouse.RightButton == MouseButtonState.Pressed)
             {
-                if (ParentTreeView.SelectedItems.Count <= 1 || !IsSelected)
+                var treeView = ParentTreeView;
+                if (treeView != null && treeView.SelectionMode == SelectionMode.Multiple)
+                {
+                    Select(!IsSelected, SelectionMode.Multiple);
+                }
+                else if (treeView.SelectedItems == null || treeView.SelectedItems.Count <= 1 || !IsSelected)
+                {
                     Select(true, SelectionMode.Single);
+                }
             }
             else
-                Select(IsControlKeyDown ? (!IsSelected) : true, GetSelectionMode());
+                MouseLeftButtonDownSelect();
 
             base.OnGotFocus(e);
         }
@@ -241,7 +251,8 @@ namespace TestMultiSelectTreeView.Controls
         {
             base.OnKeyDown(e);
 
-            if (!e.Handled)
+            var treeView = ParentTreeView;
+            if (!e.Handled && treeView != null && treeView.SelectionMode != SelectionMode.Multiple)
             {
                 var key = e.Key;
                 switch (key)
@@ -272,8 +283,8 @@ namespace TestMultiSelectTreeView.Controls
                                 if (IsControlKeyDown || !CanExpandOnInput || !this.IsExpanded)
                                     break;
 
-                                if (!base.IsFocused)
-                                    base.Focus();
+                                if (!IsFocused)
+                                    Focus();
                                 else
                                     this.IsExpanded = false;
 
@@ -558,6 +569,12 @@ namespace TestMultiSelectTreeView.Controls
 
         #region Func
 
+        private void MouseLeftButtonDownSelect()
+        {
+            var treeView = ParentTreeView;
+            Select(treeView == null ? IsControlKeyDown : (IsControlKeyDown || treeView.SelectionMode == SelectionMode.Multiple) ? (!IsSelected) : true, GetSelectionMode());
+        }
+
         private bool ContainSelection()
         {
             if (!HasItems)
@@ -619,22 +636,22 @@ namespace TestMultiSelectTreeView.Controls
 
         protected virtual void OnSelected(RoutedEventArgs e)
         {
-            base.RaiseEvent(e);
+            RaiseEvent(e);
         }
 
         protected virtual void OnUnselected(RoutedEventArgs e)
         {
-            base.RaiseEvent(e);
+            RaiseEvent(e);
         }
 
         protected virtual void OnCollapsed(RoutedEventArgs e)
         {
-            base.RaiseEvent(e);
+            RaiseEvent(e);
         }
 
         protected virtual void OnExpanded(RoutedEventArgs e)
         {
-            base.RaiseEvent(e);
+            RaiseEvent(e);
         }
 
         private void HandleBringIntoView(RequestBringIntoViewEventArgs e)
