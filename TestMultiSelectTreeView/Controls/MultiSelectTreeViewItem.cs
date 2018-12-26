@@ -100,7 +100,7 @@ namespace TestMultiSelectTreeView.Controls
 
         #endregion
 
-        #region Properties
+        #region Properties 
 
         public static readonly DependencyProperty IsExpandedProperty =
             DependencyProperty.Register("IsExpanded", typeof(bool), typeof(MultiSelectTreeViewItem), new FrameworkPropertyMetadata(false, OnIsExpandedChanged));

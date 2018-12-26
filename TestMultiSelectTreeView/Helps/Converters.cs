@@ -17,8 +17,9 @@ namespace TestMultiSelectTreeView.Helps
                 return Visibility.Collapsed;
 
             var item = (HeaderedItemsControl)values[0];
+            var tag = int.Parse(values[1].ToString());
 
-            if (item.Visibility != Visibility.Visible)
+            if (!item.IsVisible || tag == 1)
                 return Visibility.Collapsed;
 
             var ic = ItemsControl.ItemsControlFromItemContainer(item);
@@ -31,7 +32,7 @@ namespace TestMultiSelectTreeView.Helps
             for (; i >= 0; i--)
             {
                 var curItem = (HeaderedItemsControl)ic.ItemContainerGenerator.ContainerFromItem(ic.Items[i]);
-                if (curItem.Visibility == Visibility.Visible)
+                if (curItem.IsVisible)
                     return Visibility.Visible;
             }
 
@@ -52,8 +53,9 @@ namespace TestMultiSelectTreeView.Helps
                 return Visibility.Collapsed;
 
             var item = (HeaderedItemsControl)values[0];
+            var tag = int.Parse(values[1].ToString());
 
-            if (item.Visibility != Visibility.Visible)
+            if (!item.IsVisible || tag == 1)
                 return Visibility.Collapsed;
 
             var ic = ItemsControl.ItemsControlFromItemContainer(item);
@@ -66,7 +68,7 @@ namespace TestMultiSelectTreeView.Helps
             for (; i < ic.Items.Count; i++)
             {
                 var curItem = (HeaderedItemsControl)ic.ItemContainerGenerator.ContainerFromItem(ic.Items[i]);
-                if (curItem.Visibility == Visibility.Visible)
+                if (curItem.IsVisible)
                     return Visibility.Visible;
             }
 
@@ -87,8 +89,9 @@ namespace TestMultiSelectTreeView.Helps
                 return Visibility.Collapsed;
 
             var item = (HeaderedItemsControl)values[0];
+            var tag = int.Parse(values[1].ToString());
 
-            if (item.Visibility != Visibility.Visible)
+            if (!item.IsVisible || tag == 1)
                 return Visibility.Collapsed;
 
             var ic = ItemsControl.ItemsControlFromItemContainer(item);

@@ -13,6 +13,10 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using TestMultiSelectTreeView.Controls;
+using TestMultiSelectTreeView.Helps;
+using TestMultiSelectTreeView.Adorners;
+using System.Windows.Controls.Primitives;
 
 namespace TestMultiSelectTreeView
 {
@@ -129,6 +133,484 @@ namespace TestMultiSelectTreeView
             (treeView.ItemContainerGenerator.ContainerFromIndex(treeView.Items.Count - 1) as FrameworkElement).BringIntoView();
 
             ShowSelectedItems();
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            _adornerLayer = AdornerLayer.GetAdornerLayer(treeView);
+            this.AddHandler(MultiSelectTreeView.MouseLeftButtonDownEvent, new MouseButtonEventHandler(MouseLeftButtonDownEventHandler), true);
+        }
+
+        private Point _cacheMouseDownPosToChild;
+        private MultiSelectTreeViewItem _draggingContainer = null;
+
+        private MultiSelectTreeViewItem _lastOverlapContainer = null;
+        private DateTime _startOverlapTime = DateTime.MinValue;
+
+        private AdornerLayer _adornerLayer = null;
+        private MousePanelAdorner _panelAdorner = null;
+
+        private MousePanelAdorner ConstructMousePanelAdorner(UIElement panel, UIElement draggingContainer)
+        {
+            if (panel == null || draggingContainer == null)
+                return null;
+
+            return new MousePanelAdorner(panel, draggingContainer as FrameworkElement, Mouse.GetPosition(draggingContainer));
+        }
+
+        private MousePanelAdorner GetPanelAdorner(UIElement panel, FrameworkElement draggingContainer)
+        {
+            return ConstructMousePanelAdorner(panel, draggingContainer);
+        }
+
+        //Mouse Down
+        private void MouseLeftButtonDownEventHandler(object sender, MouseButtonEventArgs e)
+        {
+            if (!treeView.HasItems)
+                return;
+
+            var result = VisualTreeHelper.HitTest(treeView, e.GetPosition(treeView));
+            if (result == null)
+                return;
+
+            var treeViewItem = Utils.FindVisualParent<MultiSelectTreeViewItem>(result.VisualHit);
+            if (treeViewItem == null)
+                return;
+
+            _cacheMouseDownPosToChild = e.GetPosition(treeViewItem);
+            _draggingContainer = treeViewItem;
+
+            treeView.PreviewMouseMove += OnMouseMove;
+
+        }
+
+        //Mouse Move
+        private void OnMouseMove(object sender, MouseEventArgs e)
+        {
+            StartDrag();
+        }
+
+        //Start Darg
+        private void StartDrag()
+        {
+            if (_panelAdorner != null || _draggingContainer == null)
+                return;
+
+            if (_panelAdorner == null)
+            {
+                _draggingContainer.Tag = 1;
+                _panelAdorner = GetPanelAdorner(treeView, _draggingContainer);
+                _draggingContainer.Tag = 0;
+            }
+
+            _adornerLayer.Add(_panelAdorner);
+            _draggingContainer.Opacity = 0.2;
+
+            DragDrop.AddQueryContinueDragHandler(treeView, OnQueryContinueDrag);
+            DragDrop.DoDragDrop(treeView, _draggingContainer, DragDropEffects.Move);
+            DragDrop.RemoveQueryContinueDragHandler(treeView, OnQueryContinueDrag);
+
+            EndDrag();
+        }
+
+        //Dragging
+        private void OnQueryContinueDrag(object sender, QueryContinueDragEventArgs e)
+        {
+            _panelAdorner.Update();
+            Move();
+        }
+
+        //End Drag
+        private void EndDrag()
+        {
+            treeView.PreviewMouseMove -= OnMouseMove;
+
+            _adornerLayer.Remove(_panelAdorner);
+            _panelAdorner = null;
+
+            _draggingContainer.Opacity = 1;
+            _draggingContainer = null;
+
+            _lastOverlapContainer = null;
+            _startOverlapTime = DateTime.MinValue;
+        }
+
+        /// <returns>true:up  false:down</returns>
+        private bool MoveDirection(Point dragedItemOriginalPos, Rect dragedRect)
+        {
+            return DoubleUtil.LessThan(dragedRect.Y, dragedItemOriginalPos.Y);
+        }
+
+        private bool FindFirstUpItemWithValidOverlap(MultiSelectTreeView rootTreeView, ItemsControl parentItemsControl, int startIndex, Rect draggingRect, ref Size overlapSize, ref Rect overlapContainerRect, ref MultiSelectTreeViewItem overlapContainer)
+        {
+            while (startIndex > -1)
+            {
+                var upTreeViewItem = parentItemsControl.ItemContainerGenerator.ContainerFromIndex(startIndex--) as MultiSelectTreeViewItem;
+                if (upTreeViewItem == null)
+                    continue;
+
+                if (upTreeViewItem.HasItems)
+                {
+                    if (FindFirstUpItemWithValidOverlap(rootTreeView, upTreeViewItem, upTreeViewItem.Items.Count - 1, draggingRect, ref overlapSize, ref  overlapContainerRect, ref overlapContainer))
+                        return true;
+                }
+                else
+                {
+                    var upItemPos = upTreeViewItem.TranslatePoint(new Point(), rootTreeView);
+                    var upItemOverlapSize = GetOverlapSize(new Rect(upItemPos, new Point(upItemPos.X + upTreeViewItem.ActualWidth, upItemPos.Y + upTreeViewItem.ActualHeight)), draggingRect);
+
+                    if (upItemOverlapSize.IsEmpty || DoubleUtil.IsZero(upItemOverlapSize.Width) || DoubleUtil.IsZero(upItemOverlapSize.Height))
+                        continue;
+
+                    overlapSize = upItemOverlapSize;
+                    overlapContainerRect = new Rect(upItemPos.X, upItemPos.Y, upTreeViewItem.ActualWidth, upTreeViewItem.ActualHeight);
+                    overlapContainer = upTreeViewItem;
+
+                    return true;
+                }
+            };
+
+            var superIC = ItemsControl.ItemsControlFromItemContainer(parentItemsControl);
+            if (superIC == null)
+                return false;
+
+            var topIndex = superIC.ItemContainerGenerator.IndexFromContainer(parentItemsControl);
+            return FindFirstUpItemWithValidOverlap(rootTreeView, superIC, topIndex - 1, draggingRect, ref overlapSize, ref  overlapContainerRect, ref overlapContainer);
+        }
+
+        private bool FindFirstDownItemWithValidOverlap(MultiSelectTreeView rootTreeView, ItemsControl parentItemsControl, int startIndex, Rect draggingRect, ref Size overlapSize, ref Rect overlapContainerRect, ref MultiSelectTreeViewItem overlapContainer)
+        {
+            while (startIndex < parentItemsControl.Items.Count)
+            {
+                var downTreeViewItem = parentItemsControl.ItemContainerGenerator.ContainerFromIndex(startIndex++) as MultiSelectTreeViewItem;
+                if (downTreeViewItem == null)
+                    continue;
+
+                if (downTreeViewItem.HasItems)
+                {
+                    if (FindFirstDownItemWithValidOverlap(rootTreeView, downTreeViewItem, 0, draggingRect, ref overlapSize, ref overlapContainerRect, ref overlapContainer))
+                        return true;
+                }
+                else
+                {
+                    var downItemPos = downTreeViewItem.TranslatePoint(new Point(), rootTreeView);
+                    var downItemOverlapSize = GetOverlapSize(new Rect(downItemPos, new Point(downItemPos.X + downTreeViewItem.ActualWidth, downItemPos.Y + downTreeViewItem.ActualHeight)), draggingRect);
+
+                    if (downItemOverlapSize.IsEmpty || DoubleUtil.IsZero(downItemOverlapSize.Width) || DoubleUtil.IsZero(downItemOverlapSize.Height))
+                        continue;
+
+                    overlapSize = downItemOverlapSize;
+                    overlapContainerRect = new Rect(downItemPos.X, downItemPos.Y, downTreeViewItem.ActualWidth, downTreeViewItem.ActualHeight);
+                    overlapContainer = downTreeViewItem;
+
+                    return true;
+                }
+            };
+
+            var superIC = ItemsControl.ItemsControlFromItemContainer(parentItemsControl);
+            if (superIC == null)
+                return false;
+
+            var topIndex = superIC.ItemContainerGenerator.IndexFromContainer(parentItemsControl);
+            return FindFirstDownItemWithValidOverlap(rootTreeView, superIC, topIndex + 1, draggingRect, ref overlapSize, ref  overlapContainerRect, ref overlapContainer);
+        }
+
+        private bool IsFromGroup(ItemsControl parentItemsControl)
+        {
+            return parentItemsControl != null && !(parentItemsControl is MultiSelectTreeView);
+        }
+
+        private bool DealHover(
+            ItemsControl targetItemsControl, IList<TestModel> targetCollection, int targetIndex,
+            IList<TestModel> sourceCollection, int sourceIndex, TestModel sourceItem,
+            int newGroupIndex, MultiSelectTreeViewItem overlapContainer,
+            ref MultiSelectTreeViewItem lastOverlapContainer, ref DateTime startOverlapTime)
+        {
+            if (!(targetItemsControl is MultiSelectTreeView))
+                return false;
+
+            if (lastOverlapContainer != overlapContainer)
+            {
+                lastOverlapContainer = overlapContainer;
+                startOverlapTime = DateTime.Now;
+            }
+
+            if ((DateTime.Now - startOverlapTime).TotalMilliseconds > 1200)
+            {
+                var targetItem = targetCollection[targetIndex];
+
+                var group = new TestModel { Name = "New Group", IsGroup = true };
+                group.ModelCollection.Add(targetItem);
+                group.ModelCollection.Add(sourceItem);
+
+                targetCollection.RemoveAt(targetIndex);
+                targetCollection.Insert(targetIndex, group);
+
+                sourceCollection.RemoveAt(sourceIndex);
+
+                var newGroupItemsControl = targetItemsControl.ItemContainerGenerator.ContainerFromIndex(newGroupIndex) as ItemsControl;
+                var newGroupGenerator = newGroupItemsControl.ItemContainerGenerator;
+
+                CheckNewGroupContainerGenerator(newGroupGenerator);
+                lastOverlapContainer = null;
+            }
+
+            return true;
+        }
+
+        private void CheckNewGroupContainerGenerator(ItemContainerGenerator newGroupGenerator)
+        {
+            if (newGroupGenerator.Status < GeneratorStatus.ContainersGenerated)
+            {
+                EventHandler handler = null;
+                handler = (s, e) =>
+                {
+                    var generator = (ItemContainerGenerator)s;
+
+                    if (_draggingContainer == null)
+                        generator.StatusChanged -= handler;
+                    else
+                    {
+                        if (generator.Status == GeneratorStatus.ContainersGenerated)
+                        {
+                            _draggingContainer = generator.ContainerFromIndex(1) as MultiSelectTreeViewItem;
+                            if (_draggingContainer != null)
+                            {
+                                _draggingContainer.Focus();
+                                _draggingContainer.Opacity = 0.2;
+                            }
+
+                            generator.StatusChanged -= handler;
+                        }
+                    }
+                };
+
+                newGroupGenerator.StatusChanged += handler;
+            }
+            else
+                _draggingContainer = newGroupGenerator.ContainerFromIndex(1) as MultiSelectTreeViewItem;
+        }
+
+        private bool MoveUp(MultiSelectTreeView rootTreeView, Rect draggingRect, ref MultiSelectTreeViewItem draggingContainer, ref MultiSelectTreeViewItem lastOverlapContainer, ref DateTime startOverlapTime)
+        {
+            Size overlapSize = new Size();
+            Rect overlapItemRect = new Rect();
+            MultiSelectTreeViewItem overlapContainer = null;
+
+            var sourceItemsControl = ItemsControl.ItemsControlFromItemContainer(draggingContainer);
+            if (sourceItemsControl == null)
+                return false;
+
+            var sourceCollection = sourceItemsControl.ItemsSource as IList<TestModel>;
+            var sourceIndex = sourceItemsControl.ItemContainerGenerator.IndexFromContainer(draggingContainer);
+            var sourceItem = sourceCollection[sourceIndex];
+
+            var sourcePos = draggingContainer.TranslatePoint(new Point(), rootTreeView);
+
+            //从组中分离
+            if (IsFromGroup(sourceItemsControl) && sourceIndex == 0 && DoubleUtil.LessThan(draggingRect.Bottom, sourcePos.Y + draggingContainer.ActualHeight / 2))
+            {
+                //加入上层集合
+                var superItemsControl = ItemsControl.ItemsControlFromItemContainer(sourceItemsControl);
+                var superCollection = superItemsControl.ItemsSource as IList<TestModel>;
+                var superIndex = superItemsControl.ItemContainerGenerator.IndexFromContainer(sourceItemsControl);
+
+                sourceCollection.RemoveAt(sourceIndex);
+                superCollection.Insert(superIndex, sourceItem);
+
+                //原组若剩余一项，则将该项加入上层，移除组
+                if (sourceItemsControl.Items.Count == 1)
+                {
+                    sourceItem = sourceCollection[0];
+                    sourceCollection.RemoveAt(0);
+
+                    superCollection.Insert(superIndex + 1, sourceItem);
+                    superCollection.RemoveAt(superIndex + 2);
+                }
+
+                lastOverlapContainer = null;
+                draggingContainer = superItemsControl.ItemContainerGenerator.ContainerFromIndex(superIndex) as MultiSelectTreeViewItem;
+
+                return true;
+            }
+
+            if (!FindFirstUpItemWithValidOverlap(rootTreeView, sourceItemsControl, sourceIndex - 1, draggingRect, ref overlapSize, ref overlapItemRect, ref overlapContainer))
+                return false;
+
+            var targetItemsControl = ItemsControl.ItemsControlFromItemContainer(overlapContainer);
+            var targetCollection = targetItemsControl.ItemsSource as IList<TestModel>;
+            var targetIndex = targetItemsControl.ItemContainerGenerator.IndexFromContainer(overlapContainer);
+
+            if (DoubleUtil.GreaterThan(draggingRect.Y, overlapItemRect.Y + overlapItemRect.Height / 2))
+            {
+                //do noting
+            }
+            else if (DoubleUtil.GreaterThan(draggingRect.Y, overlapItemRect.Y + overlapItemRect.Height / 4)) // 3/4 -> 1/4 height
+            {
+                //非同组，则加入
+                if (IsFromGroup(targetItemsControl) && targetItemsControl != sourceItemsControl)
+                {
+                    sourceCollection.RemoveAt(sourceIndex);
+                    targetCollection.Add(sourceItem);
+
+                    lastOverlapContainer = null;
+                    draggingContainer = targetItemsControl.ItemContainerGenerator.ContainerFromIndex(targetCollection.Count - 1) as MultiSelectTreeViewItem;
+                }
+            }
+            else if (DoubleUtil.LessThan(draggingRect.Bottom, overlapItemRect.Y + overlapItemRect.Height * 3 / 4)) //Top -> 3/4 height 移动
+            {
+                sourceCollection.RemoveAt(sourceIndex);
+                targetCollection.Insert(targetIndex, sourceItem);
+
+                lastOverlapContainer = null;
+                draggingContainer = targetItemsControl.ItemContainerGenerator.ContainerFromIndex(targetIndex) as MultiSelectTreeViewItem;
+            }
+            else //处理悬停，创建新组
+            {
+                if (!DealHover(
+                        targetItemsControl, targetCollection, targetIndex,
+                        sourceCollection, sourceIndex, sourceItem,
+                        targetIndex, overlapContainer,
+                        ref lastOverlapContainer, ref startOverlapTime))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private bool MoveDown(MultiSelectTreeView rootTreeView, Rect draggingRect, ref MultiSelectTreeViewItem draggingContainer, ref MultiSelectTreeViewItem lastOverlapContainer, ref DateTime startOverlapTime)
+        {
+            Size overlapSize = new Size();
+            Rect overlapItemRect = new Rect();
+            MultiSelectTreeViewItem overlapContainer = null;
+
+            var sourceItemsControl = ItemsControl.ItemsControlFromItemContainer(draggingContainer);
+            if (sourceItemsControl == null)
+                return false;
+
+            var sourceCollection = sourceItemsControl.ItemsSource as IList<TestModel>;
+            var sourceIndex = sourceItemsControl.ItemContainerGenerator.IndexFromContainer(draggingContainer);
+            var sourceItem = sourceCollection[sourceIndex];
+
+            var sourcePos = draggingContainer.TranslatePoint(new Point(), rootTreeView);
+
+            //从组中分离
+            if (IsFromGroup(sourceItemsControl) && sourceIndex == sourceItemsControl.Items.Count - 1 && DoubleUtil.GreaterThan(draggingRect.Y, sourcePos.Y + draggingContainer.ActualHeight / 2))
+            {
+                //加入上层集合
+                var superItemsControl = ItemsControl.ItemsControlFromItemContainer(sourceItemsControl);
+                var superCollection = superItemsControl.ItemsSource as IList<TestModel>;
+                var superIndex = superItemsControl.ItemContainerGenerator.IndexFromContainer(sourceItemsControl);
+
+                sourceCollection.RemoveAt(sourceIndex);
+                if (superIndex + 1 < superItemsControl.Items.Count)
+                {
+                    superCollection.Insert(superIndex + 1, sourceItem);
+                    draggingContainer = superItemsControl.ItemContainerGenerator.ContainerFromIndex(superIndex + 1) as MultiSelectTreeViewItem;
+                }
+                else
+                {
+                    superCollection.Add(sourceItem);
+                    draggingContainer = superItemsControl.ItemContainerGenerator.ContainerFromIndex(superCollection.Count - 1) as MultiSelectTreeViewItem;
+                }
+
+                //原组若剩余一项，则将该项加入上层集合，移除组
+                if (sourceItemsControl.Items.Count == 1)
+                {
+                    sourceItem = sourceCollection[0];
+                    sourceCollection.RemoveAt(0);
+
+                    superCollection.Insert(superIndex + 1, sourceItem);
+                    superCollection.RemoveAt(superIndex);
+                }
+
+                lastOverlapContainer = null;
+                return true;
+            }
+
+            if (!FindFirstDownItemWithValidOverlap(rootTreeView, sourceItemsControl, sourceIndex + 1, draggingRect, ref overlapSize, ref overlapItemRect, ref overlapContainer))
+                return false;
+
+            var targetItemsControl = ItemsControl.ItemsControlFromItemContainer(overlapContainer);
+            var targetCollection = targetItemsControl.ItemsSource as IList<TestModel>;
+            var targetIndex = targetItemsControl.ItemContainerGenerator.IndexFromContainer(overlapContainer);
+
+            if (DoubleUtil.LessThan(draggingRect.Bottom, overlapItemRect.Y + overlapItemRect.Height / 2))
+            {
+                //Do noting
+            }
+            else if (DoubleUtil.LessThan(draggingRect.Bottom, overlapItemRect.Y + overlapItemRect.Height * 3 / 4)) // 1/4 -> 3/4 height
+            {
+                //非同组，则加入
+                if (IsFromGroup(targetItemsControl) && targetItemsControl != sourceItemsControl)
+                {
+                    sourceCollection.RemoveAt(sourceIndex);
+                    targetCollection.Insert(0, sourceItem);
+
+                    lastOverlapContainer = null;
+                    draggingContainer = targetItemsControl.ItemContainerGenerator.ContainerFromIndex(0) as MultiSelectTreeViewItem;
+                }
+            }
+            else if (DoubleUtil.GreaterThan(draggingRect.Y, overlapItemRect.Y + overlapItemRect.Height / 4)) //Top -> 1/4 height 移动
+            {
+                sourceCollection.RemoveAt(sourceIndex);
+                targetCollection.Insert(targetIndex, sourceItem);
+
+                lastOverlapContainer = null;
+                draggingContainer = targetItemsControl.ItemContainerGenerator.ContainerFromIndex(targetIndex) as MultiSelectTreeViewItem;
+            }
+            else //处理悬停，创建新组
+            {
+                if (!DealHover(
+                        targetItemsControl, targetCollection, targetIndex,
+                        sourceCollection, sourceIndex, sourceItem,
+                        targetIndex - 1, overlapContainer,
+                        ref lastOverlapContainer, ref startOverlapTime))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private void Move()
+        {
+            var screenPos = new Win32.POINT();
+            if (!Win32.GetCursorPos(ref screenPos))
+                return;
+
+            var posToPanel = treeView.PointFromScreen(new Point(screenPos.X, screenPos.Y));
+            var draggingRect = new Rect(posToPanel.X - _cacheMouseDownPosToChild.X, posToPanel.Y - _cacheMouseDownPosToChild.Y, _draggingContainer.ActualWidth, _draggingContainer.ActualHeight);
+
+            if (DoubleUtil.GreaterThan(draggingRect.X, treeView.ActualWidth * 3 / 4)
+                || DoubleUtil.LessThan(draggingRect.Right, treeView.ActualWidth / 4)
+                || DoubleUtil.LessThan(draggingRect.Bottom, 0)
+                || DoubleUtil.GreaterThan(draggingRect.Y, treeView.ActualHeight))
+                return;
+
+            var sourcePos = _draggingContainer.TranslatePoint(new Point(), treeView);
+            var isSuccess = false;
+
+            if (MoveDirection(sourcePos, draggingRect))
+            {
+                isSuccess = MoveUp(treeView, draggingRect, ref _draggingContainer, ref _lastOverlapContainer, ref _startOverlapTime);
+            }
+            else
+            {
+                isSuccess = MoveDown(treeView, draggingRect, ref _draggingContainer, ref _lastOverlapContainer, ref _startOverlapTime);
+            }
+
+            if (isSuccess && _draggingContainer != null)
+            {
+                _draggingContainer.Focus();
+                _draggingContainer.Opacity = 0.2;
+
+                _testSource.ItemsChangedFlag = !_testSource.ItemsChangedFlag;
+            }
+        }
+
+        private Size GetOverlapSize(Rect rect1, Rect rect2)
+        {
+            return Rect.Intersect(rect1, rect2).Size;
         }
     }
 }

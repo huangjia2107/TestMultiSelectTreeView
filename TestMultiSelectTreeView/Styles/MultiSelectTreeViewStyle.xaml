@@ -6,7 +6,7 @@
     <helps:TopLineVisibilityMultiConverter x:Key="topLineVisibilityMultiConverter"/>
     <helps:MiddleLineVisibilityMultiConverter x:Key="middleLineVisibilityMultiConverter"/>
     <helps:BottomLineVisibilityMultiConverter x:Key="bottomLineVisibilityMultiConverter"/>
-    
+
     <Style TargetType="{x:Type controls:MultiSelectTreeView}">
         <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -47,10 +47,11 @@
         <Setter Property="Background" Value="DarkGray"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-        <Setter Property="Margin" Value="0"/>
+        <Setter Property="Margin" Value="0,5"/>
         <Setter Property="Padding" Value="10,15"/>
         <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Tag" Value="0"/>
         <Setter Property="IsExpanded" Value="true"/>
         <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
         <Setter Property="Template">
@@ -58,45 +59,46 @@
                 <ControlTemplate TargetType="{x:Type controls:MultiSelectTreeViewItem}">
                     <Grid>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="3"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="*"/>
-                            <RowDefinition Height="3"/>
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="12"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Path x:Name="tp" Grid.Row="0" Grid.RowSpan="2" HorizontalAlignment="Left" Margin="0,-2,0,-2" Stretch="Fill" Data="M0,0 V1" Stroke="Black" StrokeThickness="2">
+                        <Path x:Name="tp" Grid.Row="0" HorizontalAlignment="Left" Stretch="Fill" Data="M0,0 V1" Stroke="Black" StrokeThickness="2">
                             <Path.Visibility>
                                 <MultiBinding Converter="{StaticResource topLineVisibilityMultiConverter}"
                                               FallbackValue="{x:Static Visibility.Collapsed}">
                                     <Binding RelativeSource="{RelativeSource TemplatedParent}"/>
+                                    <Binding Path="Tag" RelativeSource="{RelativeSource TemplatedParent}"/>
                                     <Binding Path="DataContext.ItemsChangedFlag" RelativeSource="{RelativeSource AncestorType=controls:MultiSelectTreeView}"/>
                                 </MultiBinding>
                             </Path.Visibility>
                         </Path>
-                        <Path x:Name="mp" Grid.Row="1" Grid.RowSpan="2" VerticalAlignment="Center" Stretch="Fill" Data="M0,0 H1" Stroke="Black" StrokeThickness="2">
+                        <Path x:Name="mp" Grid.RowSpan="2" VerticalAlignment="Center" Stretch="Fill" Data="M0,0 H1" Stroke="Black" StrokeThickness="2">
                             <Path.Visibility>
                                 <MultiBinding Converter="{StaticResource middleLineVisibilityMultiConverter}"
                                               FallbackValue="{x:Static Visibility.Collapsed}">
                                     <Binding RelativeSource="{RelativeSource TemplatedParent}"/>
+                                    <Binding Path="Tag" RelativeSource="{RelativeSource TemplatedParent}"/>
                                     <Binding Path="DataContext.ItemsChangedFlag" RelativeSource="{RelativeSource AncestorType=controls:MultiSelectTreeView}"/>
                                 </MultiBinding>
                             </Path.Visibility>
                         </Path>
-                        <Path x:Name="bp" Grid.Row="2" Grid.RowSpan="2" HorizontalAlignment="Left" Margin="0,-2,0,-2" Stretch="Fill" Data="M0,0 V1" Stroke="Black" StrokeThickness="2">
+                        <Path x:Name="bp" Grid.Row="1"  HorizontalAlignment="Left" Stretch="Fill" Data="M0,0 V1" Stroke="Black" StrokeThickness="2">
                             <Path.Visibility>
                                 <MultiBinding Converter="{StaticResource bottomLineVisibilityMultiConverter}"
                                               FallbackValue="{x:Static Visibility.Collapsed}">
                                     <Binding RelativeSource="{RelativeSource TemplatedParent}"/>
+                                    <Binding Path="Tag" RelativeSource="{RelativeSource TemplatedParent}"/>
                                     <Binding Path="DataContext.ItemsChangedFlag" RelativeSource="{RelativeSource AncestorType=controls:MultiSelectTreeView}"/>
                                 </MultiBinding>
                             </Path.Visibility>
                         </Path>
 
-                        <Border x:Name="PART_Header" Grid.Column="1" Grid.Row="1" Grid.RowSpan="2" SnapsToDevicePixels="true" 
+                        <Border x:Name="PART_Header" Grid.Column="1" Grid.RowSpan="2" SnapsToDevicePixels="true" 
                                 BorderBrush="{TemplateBinding BorderBrush}" 
                                 BorderThickness="{TemplateBinding BorderThickness}" 
                                 Background="{TemplateBinding Background}" 
@@ -106,14 +108,14 @@
                                               SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
                         </Border>
 
-                        <ItemsPresenter x:Name="ItemsHost" Grid.Column="1" Grid.RowSpan="4" Margin="-12,0,0,0"/>
+                        <ItemsPresenter x:Name="ItemsHost" Grid.Column="1" Grid.RowSpan="2" Margin="-12,0,0,0" AllowDrop="True"/>
 
                     </Grid>
                     <ControlTemplate.Triggers>
                         <DataTrigger Binding="{Binding IsVisible}" Value="false">
                             <Setter Property="Visibility" Value="Collapsed"/>
                         </DataTrigger>
-                        
+
                         <Trigger Property="HasItems" Value="true">
                             <Setter Property="Visibility" TargetName="PART_Header" Value="Collapsed"/>
                         </Trigger>
@@ -131,5 +133,5 @@
             </Setter.Value>
         </Setter>
     </Style>
-    
+
 </ResourceDictionary>
