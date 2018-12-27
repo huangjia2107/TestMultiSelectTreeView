@@ -100,7 +100,7 @@ namespace TestMultiSelectTreeView.Controls
 
         #endregion
 
-        #region Properties 
+        #region Properties
 
         public static readonly DependencyProperty IsExpandedProperty =
             DependencyProperty.Register("IsExpanded", typeof(bool), typeof(MultiSelectTreeViewItem), new FrameworkPropertyMetadata(false, OnIsExpandedChanged));
@@ -192,7 +192,7 @@ namespace TestMultiSelectTreeView.Controls
             var parentTreeView = ParentTreeView;
 
             if (container != null && parentTreeView != null)
-                parentTreeView.RemoveSelectedElement(container, true);
+                parentTreeView.RemoveSelectedElement(container, item, true);
         }
 
         protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
@@ -225,7 +225,7 @@ namespace TestMultiSelectTreeView.Controls
             }
 
             base.OnMouseLeftButtonDown(e);
-        } 
+        }
 
         protected override void OnGotFocus(RoutedEventArgs e)
         {

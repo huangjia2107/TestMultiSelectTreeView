@@ -183,9 +183,37 @@ namespace TestMultiSelectTreeView.Controls
             base.ClearContainerForItemOverride(element, item);
 
             var container = element as MultiSelectTreeViewItem;
-
             if (container != null)
-                RemoveSelectedElement(container, true);
+                RemoveSelectedElement(container, item, true);
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            var handled = true;
+            var key = e.Key;
+
+            switch (key)
+            {
+                case Key.Divide:
+                case Key.Oem2:
+                case Key.A:
+                    // Ctrl-Fowardslash = Select All
+                    if (((Keyboard.Modifiers & ModifierKeys.Control) == (ModifierKeys.Control)) && (SelectionMode == SelectionMode.Extended))
+                    {
+                        SelectAll();
+                    }
+                    else
+                    {
+                        handled = false;
+                    }
+
+                    break;
+            }
+
+            if (handled)
+                e.Handled = true;
+            else
+                base.OnKeyDown(e);
         }
 
         #endregion
@@ -220,21 +248,25 @@ namespace TestMultiSelectTreeView.Controls
 
         #region Selection
 
-        private void RefreshSelectedElements(ItemsControl itemsControl)
+        public void SelectAll()
         {
-            if (itemsControl == null || !itemsControl.HasItems)
-                return;
-
-            for (int i = 0; i < itemsControl.Items.Count; i++)
+            if (SelectionMode == SelectionMode.Extended && !IsChangingSelection)
             {
-                var container = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
-                if (container != null)
-                {
-                    if (container.IsSelected)
-                        _selectedElements.Add(new ContainerItemPair(container, itemsControl.Items[i]));
+                IsChangingSelection = true;
+                _selectedElements.Clear();
 
-                    RefreshSelectedElements(container);
-                }
+                ForearchTreeViewItem(this, null, true,
+                  (container, item) =>
+                  {
+                      if (!container.IsSelected)
+                          container.IsSelected = true;
+
+                      _selectedElements.Add(new ContainerItemPair(container, item));
+
+                  });
+
+                SetSelectedItems();
+                IsChangingSelection = false;
             }
         }
 
@@ -242,7 +274,13 @@ namespace TestMultiSelectTreeView.Controls
         {
             _selectedElements.Clear();
 
-            RefreshSelectedElements(this);
+            ForearchTreeViewItem(this, null, true,
+                   (container, item) =>
+                   {
+                       if (container.IsSelected)
+                           _selectedElements.Add(new ContainerItemPair(container, item));
+                   });
+
             SetSelectedItems();
         }
 
@@ -252,10 +290,11 @@ namespace TestMultiSelectTreeView.Controls
 
             if (index >= 0)
             {
+                _selectedElements.RemoveAt(index);
+
                 if (treeViewItem.IsSelected)
                     treeViewItem.IsSelected = false;
 
-                _selectedElements.RemoveAt(index);
                 return true;
             }
 
@@ -278,30 +317,27 @@ namespace TestMultiSelectTreeView.Controls
             return false;
         }
 
-        private void ForearchTreeViewItem(MultiSelectTreeViewItem treeViewItem, bool walkIntoSubtree, Action<MultiSelectTreeViewItem> doAction)
+        private void ForearchTreeViewItem(ItemsControl itemsControl, object item, bool walkIntoSubtree, Action<MultiSelectTreeViewItem, object> doAction)
         {
-            if (doAction != null)
-                doAction(treeViewItem);
+            if (!(itemsControl is MultiSelectTreeView) && doAction != null)
+                doAction(itemsControl as MultiSelectTreeViewItem, item);
 
-            if (!treeViewItem.HasItems || !walkIntoSubtree)
+            if (!itemsControl.HasItems || !(itemsControl is MultiSelectTreeView) && !walkIntoSubtree)
                 return;
 
-            for (int i = 0; i < treeViewItem.Items.Count; i++)
+            for (int i = 0; i < itemsControl.Items.Count; i++)
             {
-                var container = treeViewItem.ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
+                var container = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
                 if (container != null && doAction != null)
-                {
-                    doAction(container);
-                    ForearchTreeViewItem(container, walkIntoSubtree, doAction);
-                }
+                    ForearchTreeViewItem(container, itemsControl.Items[i], walkIntoSubtree, doAction);
             }
         }
 
-        internal void RemoveSelectedElement(MultiSelectTreeViewItem treeViewItem, bool walkIntoSubtree)
+        internal void RemoveSelectedElement(MultiSelectTreeViewItem treeViewItem, object item, bool walkIntoSubtree)
         {
             bool flag = false;
-            ForearchTreeViewItem(treeViewItem, walkIntoSubtree,
-                container =>
+            ForearchTreeViewItem(treeViewItem, item, walkIntoSubtree,
+                (container, _) =>
                 {
                     if (RemoveFromSelectedElements(container))
                         flag = true;
