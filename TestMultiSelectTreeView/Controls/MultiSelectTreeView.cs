@@ -378,20 +378,26 @@ namespace TestMultiSelectTreeView.Controls
                 var container = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
                 if (container != null && container.IsEnabled && container.IsVisible)
                 {
-                    var curOffset = container.TranslatePoint(new Point(), this).Y;
-                    if (DoubleUtil.LessThanOrClose(curOffset, bottomOffset) && DoubleUtil.GreaterThanOrClose(curOffset, topOffset))
+                    var header = container.GetHeaderElement();
+                    if (header != null && header.IsVisible)
                     {
-                        if (!container.IsSelected)
-                            container.IsSelected = true;
-
-                        AddToSelectedElements(container, itemsControl.Items[i]);
-                    }
-                    else
-                    {
-                        if (container.IsSelected)
-                            container.IsSelected = false;
-
-                        RemoveFromSelectedElements(container);
+                        var curOffset = container.TranslatePoint(new Point(), this).Y;
+                        if (DoubleUtil.LessThanOrClose(curOffset, bottomOffset) && DoubleUtil.GreaterThanOrClose(curOffset, topOffset))
+                        {
+                            if (!container.IsSelected)
+                            {
+                                container.IsSelected = true;
+                                AddToSelectedElements(container, itemsControl.Items[i]);
+                            }
+                        }
+                        else
+                        {
+                            if (container.IsSelected)
+                            {
+                                container.IsSelected = false;
+                                RemoveFromSelectedElements(container);
+                            }
+                        }
                     }
 
                     if (!container.IsExpanded || !container.HasItems)

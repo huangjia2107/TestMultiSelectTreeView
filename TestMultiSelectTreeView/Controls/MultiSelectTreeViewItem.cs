@@ -674,6 +674,11 @@ namespace TestMultiSelectTreeView.Controls
             }
         }
 
+        internal FrameworkElement GetHeaderElement()
+        {
+            return _headerElement;
+        }
+
         private FrameworkElement GetFirstHeaderElement()
         {
             var headerElement = _headerElement;
