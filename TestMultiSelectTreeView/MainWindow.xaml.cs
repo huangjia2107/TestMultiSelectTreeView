@@ -217,7 +217,13 @@ namespace TestMultiSelectTreeView
         private void OnQueryContinueDrag(object sender, QueryContinueDragEventArgs e)
         {
             _panelAdorner.Update();
-            Move();
+
+            try { Move(); }
+            catch (Exception ex)
+            {
+                Trace.TraceError(ex.StackTrace);
+            }
+
         }
 
         //End Drag
@@ -348,10 +354,9 @@ namespace TestMultiSelectTreeView
 
                 sourceCollection.RemoveAt(sourceIndex);
 
-                var newGroupItemsControl = targetItemsControl.ItemContainerGenerator.ContainerFromIndex(newGroupIndex) as ItemsControl;
-                var newGroupGenerator = newGroupItemsControl.ItemContainerGenerator;
-
+                var newGroupGenerator = (ContainerFromIndex(targetItemsControl, newGroupIndex) as ItemsControl).ItemContainerGenerator;
                 CheckNewGroupContainerGenerator(newGroupGenerator);
+
                 lastOverlapContainer = null;
             }
 
@@ -389,6 +394,18 @@ namespace TestMultiSelectTreeView
             }
             else
                 _draggingContainer = newGroupGenerator.ContainerFromIndex(1) as MultiSelectTreeViewItem;
+        }
+
+        private DependencyObject ContainerFromIndex(ItemsControl parentItemsControl, int index)
+        {
+            var container = parentItemsControl.ItemContainerGenerator.ContainerFromIndex(index);
+            if (container == null)
+            {
+                parentItemsControl.UpdateLayout();
+                container = parentItemsControl.ItemContainerGenerator.ContainerFromIndex(index);
+            }
+
+            return container;
         }
 
         private bool MoveUp(MultiSelectTreeView rootTreeView, Rect draggingRect, ref MultiSelectTreeViewItem draggingContainer, ref MultiSelectTreeViewItem lastOverlapContainer, ref DateTime startOverlapTime)
@@ -429,7 +446,7 @@ namespace TestMultiSelectTreeView
                 }
 
                 lastOverlapContainer = null;
-                draggingContainer = superItemsControl.ItemContainerGenerator.ContainerFromIndex(superIndex) as MultiSelectTreeViewItem;
+                draggingContainer = ContainerFromIndex(superItemsControl, superIndex) as MultiSelectTreeViewItem;
 
                 return true;
             }
@@ -454,7 +471,7 @@ namespace TestMultiSelectTreeView
                     targetCollection.Add(sourceItem);
 
                     lastOverlapContainer = null;
-                    draggingContainer = targetItemsControl.ItemContainerGenerator.ContainerFromIndex(targetCollection.Count - 1) as MultiSelectTreeViewItem;
+                    draggingContainer = ContainerFromIndex(targetItemsControl, targetCollection.Count - 1) as MultiSelectTreeViewItem;
                 }
             }
             else if (DoubleUtil.LessThan(draggingRect.Bottom, overlapItemRect.Y + overlapItemRect.Height * 3 / 4)) //Top -> 3/4 height 移动
@@ -463,7 +480,7 @@ namespace TestMultiSelectTreeView
                 targetCollection.Insert(targetIndex, sourceItem);
 
                 lastOverlapContainer = null;
-                draggingContainer = targetItemsControl.ItemContainerGenerator.ContainerFromIndex(targetIndex) as MultiSelectTreeViewItem;
+                draggingContainer = ContainerFromIndex(targetItemsControl, targetIndex) as MultiSelectTreeViewItem;
             }
             else //处理悬停，创建新组
             {
@@ -506,12 +523,12 @@ namespace TestMultiSelectTreeView
                 if (superIndex + 1 < superItemsControl.Items.Count)
                 {
                     superCollection.Insert(superIndex + 1, sourceItem);
-                    draggingContainer = superItemsControl.ItemContainerGenerator.ContainerFromIndex(superIndex + 1) as MultiSelectTreeViewItem;
+                    draggingContainer = ContainerFromIndex(superItemsControl, superIndex + 1) as MultiSelectTreeViewItem;
                 }
                 else
                 {
                     superCollection.Add(sourceItem);
-                    draggingContainer = superItemsControl.ItemContainerGenerator.ContainerFromIndex(superCollection.Count - 1) as MultiSelectTreeViewItem;
+                    draggingContainer = ContainerFromIndex(superItemsControl, superCollection.Count - 1) as MultiSelectTreeViewItem;
                 }
 
                 //原组若剩余一项，则将该项加入上层集合，移除组
@@ -548,7 +565,7 @@ namespace TestMultiSelectTreeView
                     targetCollection.Insert(0, sourceItem);
 
                     lastOverlapContainer = null;
-                    draggingContainer = targetItemsControl.ItemContainerGenerator.ContainerFromIndex(0) as MultiSelectTreeViewItem;
+                    draggingContainer = ContainerFromIndex(targetItemsControl, 0) as MultiSelectTreeViewItem;
                 }
             }
             else if (DoubleUtil.GreaterThan(draggingRect.Y, overlapItemRect.Y + overlapItemRect.Height / 4)) //Top -> 1/4 height 移动
@@ -557,7 +574,7 @@ namespace TestMultiSelectTreeView
                 targetCollection.Insert(targetIndex, sourceItem);
 
                 lastOverlapContainer = null;
-                draggingContainer = targetItemsControl.ItemContainerGenerator.ContainerFromIndex(targetIndex) as MultiSelectTreeViewItem;
+                draggingContainer = ContainerFromIndex(targetItemsControl, targetIndex) as MultiSelectTreeViewItem;
             }
             else //处理悬停，创建新组
             {

@@ -14,17 +14,17 @@ namespace TestMultiSelectTreeView.Helps
         public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             if (values.Contains(null) || values.Contains(DependencyProperty.UnsetValue))
-                return Visibility.Collapsed;
+                return Visibility.Hidden;
 
             var item = (HeaderedItemsControl)values[0];
             var tag = int.Parse(values[1].ToString());
 
             if (!item.IsVisible || tag == 1)
-                return Visibility.Collapsed;
+                return Visibility.Hidden;
 
             var ic = ItemsControl.ItemsControlFromItemContainer(item);
             if (ic == null || ic is MultiSelectTreeView)
-                return Visibility.Collapsed;
+                return Visibility.Hidden;
 
             var curIndex = ic.ItemContainerGenerator.IndexFromContainer(item);
 
@@ -36,7 +36,7 @@ namespace TestMultiSelectTreeView.Helps
                     return Visibility.Visible;
             }
 
-            return Visibility.Collapsed;
+            return Visibility.Hidden;
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
@@ -50,17 +50,17 @@ namespace TestMultiSelectTreeView.Helps
         public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             if (values.Contains(null) || values.Contains(DependencyProperty.UnsetValue))
-                return Visibility.Collapsed;
+                return Visibility.Hidden;
 
             var item = (HeaderedItemsControl)values[0];
             var tag = int.Parse(values[1].ToString());
 
             if (!item.IsVisible || tag == 1)
-                return Visibility.Collapsed;
+                return Visibility.Hidden;
 
             var ic = ItemsControl.ItemsControlFromItemContainer(item);
             if (ic == null || ic is MultiSelectTreeView)
-                return Visibility.Collapsed;
+                return Visibility.Hidden;
 
             var curIndex = ic.ItemContainerGenerator.IndexFromContainer(item);
 
@@ -72,7 +72,7 @@ namespace TestMultiSelectTreeView.Helps
                     return Visibility.Visible;
             }
 
-            return Visibility.Collapsed;
+            return Visibility.Hidden;
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
@@ -86,19 +86,49 @@ namespace TestMultiSelectTreeView.Helps
         public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             if (values.Contains(null) || values.Contains(DependencyProperty.UnsetValue))
-                return Visibility.Collapsed;
+                return Visibility.Hidden;
 
             var item = (HeaderedItemsControl)values[0];
             var tag = int.Parse(values[1].ToString());
 
             if (!item.IsVisible || tag == 1)
-                return Visibility.Collapsed;
+                return Visibility.Hidden;
 
             var ic = ItemsControl.ItemsControlFromItemContainer(item);
             if (ic == null || ic.Items.Count == 1 || ic is MultiSelectTreeView)
-                return Visibility.Collapsed;
+                return Visibility.Hidden;
 
             return Visibility.Visible;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class FirstOrLastItemMarginMultiConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            if (values.Contains(null) || values.Contains(DependencyProperty.UnsetValue))
+                return new Thickness(); ;
+
+            var item = (HeaderedItemsControl)values[0];
+
+            var ic = ItemsControl.ItemsControlFromItemContainer(item);
+            if (ic != null)
+            {
+                var index = ic.ItemContainerGenerator.IndexFromContainer(item);
+
+                if (index == 0)
+                    return new Thickness(0, 0, 0, 5);
+
+                if (index == ic.Items.Count - 1)
+                    return new Thickness(0, 5, 0, 0);
+            }
+
+            return new Thickness(0, 5, 0, 5);
         }
 
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
