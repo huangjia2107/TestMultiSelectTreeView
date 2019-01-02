@@ -148,7 +148,7 @@ namespace TestMultiSelectTreeView
         private DateTime _startOverlapTime = DateTime.MinValue;
 
         private AdornerLayer _adornerLayer = null;
-        private MousePanelAdorner _panelAdorner = null;
+        private MousePanelAdorner _panelAdorner = null;    
 
         private MousePanelAdorner ConstructMousePanelAdorner(UIElement panel, UIElement draggingContainer)
         {
@@ -168,7 +168,7 @@ namespace TestMultiSelectTreeView
         {
             if (!treeView.HasItems)
                 return;
-
+                                      
             var result = VisualTreeHelper.HitTest(treeView, e.GetPosition(treeView));
             if (result == null)
                 return;
@@ -186,7 +186,7 @@ namespace TestMultiSelectTreeView
 
         //Mouse Move
         private void OnMouseMove(object sender, MouseEventArgs e)
-        {
+        {                                                          
             StartDrag();
         }
 
@@ -201,10 +201,10 @@ namespace TestMultiSelectTreeView
                 _draggingContainer.Tag = 1;
                 _panelAdorner = GetPanelAdorner(treeView, _draggingContainer);
                 _draggingContainer.Tag = 0;
-            }
 
-            _adornerLayer.Add(_panelAdorner);
-            _draggingContainer.Opacity = 0.2;
+                _adornerLayer.Add(_panelAdorner);
+                _draggingContainer.Opacity = 0.2;
+            }        
 
             DragDrop.AddQueryContinueDragHandler(treeView, OnQueryContinueDrag);
             DragDrop.DoDragDrop(treeView, _draggingContainer, DragDropEffects.Move);
