@@ -6,6 +6,7 @@
     <helps:TopLineVisibilityMultiConverter x:Key="topLineVisibilityMultiConverter"/>
     <helps:MiddleLineVisibilityMultiConverter x:Key="middleLineVisibilityMultiConverter"/>
     <helps:BottomLineVisibilityMultiConverter x:Key="bottomLineVisibilityMultiConverter"/>
+    <helps:FirstOrLastItemMarginMultiConverter x:Key="firstOrLastItemMarginMultiConverter"/>
 
     <Style TargetType="{x:Type controls:MultiSelectTreeView}">
         <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"/>
@@ -47,13 +48,20 @@
         <Setter Property="Background" Value="DarkGray"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-        <Setter Property="Margin" Value="0,5"/>
         <Setter Property="Padding" Value="10,15"/>
         <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
         <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Tag" Value="0"/>
         <Setter Property="IsExpanded" Value="true"/>
         <Setter Property="IsSelected" Value="{Binding IsSelected}"/>
+        <Setter Property="Margin">
+            <Setter.Value>
+                <MultiBinding Converter="{StaticResource firstOrLastItemMarginMultiConverter}">
+                    <Binding RelativeSource="{RelativeSource Self}"/>
+                    <Binding Path="DataContext.ItemsChangedFlag" RelativeSource="{RelativeSource AncestorType=controls:MultiSelectTreeView}"/>
+                </MultiBinding>
+            </Setter.Value>
+        </Setter>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type controls:MultiSelectTreeViewItem}">

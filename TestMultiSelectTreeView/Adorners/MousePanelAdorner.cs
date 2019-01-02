@@ -33,7 +33,7 @@ namespace TestMultiSelectTreeView.Adorners
             var drawingVisual = new DrawingVisual();
             using (var context = drawingVisual.RenderOpen())
             {
-                context.DrawRectangle(new VisualBrush(vsual), null, new Rect(0, 0, width, height));
+                context.DrawRectangle(new VisualBrush(vsual) { Stretch = Stretch.None,AlignmentX=AlignmentX.Left}, null, new Rect(0, 0, width, height));
                 context.Close();
             }
 
