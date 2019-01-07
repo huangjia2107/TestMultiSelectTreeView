@@ -30,7 +30,15 @@
         </StackPanel>
 
         <controls:MultiSelectTreeView x:Name="treeView" Grid.Row="2" ItemsSource="{Binding ModelCollection}" Background="White" Margin="10" SelectionMode="Extended"
-                  ItemTemplate="{StaticResource ModelDataTemplateKey}" SelectionChanged="treeView_SelectionChanged" />
+                  ItemTemplate="{StaticResource ModelDataTemplateKey}" SelectionChanged="treeView_SelectionChanged" Grid.IsSharedSizeScope="true"
+                                      ContextMenuOpening="ContextMenu_ContextMenuOpening" KeyDown="treeView_KeyDown">
+            <controls:MultiSelectTreeView.ContextMenu>
+                <ContextMenu>
+                    <MenuItem x:Name="GroupMenuItem" FontSize="13" Header="分组" Click="GroupMenuItem_Click" />
+                    <MenuItem x:Name="UnGroupMenuItem" FontSize="13" Header="取消分组" Click="UnGroupMenuItem_Click" />
+                </ContextMenu>
+            </controls:MultiSelectTreeView.ContextMenu>
+        </controls:MultiSelectTreeView>
 
         <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="10,10,10,0">
             <TextBlock Text="Index:" Margin="0,0,5,0"/>

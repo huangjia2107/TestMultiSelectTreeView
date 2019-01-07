@@ -163,7 +163,178 @@ namespace TestMultiSelectTreeView
             return ConstructMousePanelAdorner(panel, draggingContainer);
         }
 
-        //Mouse Down
+        private bool SelectAllItems(ItemsControl itemsControl)
+        {
+            if (itemsControl == null || !itemsControl.HasItems)
+                return false;
+
+            for (int i = 0; i < itemsControl.Items.Count; i++)
+            {
+                var container = (itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem);
+                if (container != null)
+                    container.IsSelected = true;
+            }
+
+            return true;
+        }
+
+        #region Group
+
+        private void ContextMenu_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+        {
+            var element = (sender as FrameworkElement);
+            foreach (var item in element.ContextMenu.Items)
+            {
+                if (item is MenuItem)
+                {
+                    var menu = item as MenuItem;
+                    switch (menu.Name)
+                    {
+                        case "GroupMenuItem":
+                            {
+                                menu.IsEnabled = CanGroup();
+                                break;
+                            }
+                        case "UnGroupMenuItem":
+                            {
+                                menu.IsEnabled = CanUnGroup();
+                                break;
+                            }
+
+                    }
+                }
+            }
+        }
+
+        private void GroupMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            GroupFromItems();
+        }
+
+        private void UnGroupMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            UnGroupToItems();
+        }
+
+        private bool CanGroup()
+        {
+            if (treeView.SelectedItems == null || treeView.SelectedItems.Count < 2)
+                return false;
+
+            foreach (TestModel model in treeView.SelectedItems)
+            {
+                if (model.IsGroup || !_testSource.ModelCollection.Contains(model))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private void GroupFromItems()
+        {
+            if (!CanGroup())
+                return;
+
+            var selectedItems = treeView.SelectedItems;
+
+            var group = new TestModel { Name = "New Group", IsGroup = true };
+
+            int insertIndex = -1;
+            for (int i = 0; i < _testSource.ModelCollection.Count; i++)
+            {
+                var model = _testSource.ModelCollection[i];
+                if (model.IsGroup)
+                    continue;
+
+                if (selectedItems.Contains(model))
+                {
+                    if (insertIndex < 0)
+                        insertIndex = i;
+
+                    _testSource.ModelCollection.RemoveAt(i);
+
+                    model.IsSelected = true;
+                    group.ModelCollection.Add(model);
+                    i--;
+                }
+            }
+
+            if (insertIndex >= _testSource.ModelCollection.Count)
+                _testSource.ModelCollection.Add(group);
+            else
+                _testSource.ModelCollection.Insert(insertIndex, group);
+        }
+
+        private bool CanUnGroup()
+        {
+            if (treeView.SelectedItems == null || treeView.SelectedItems.Count == 0)
+                return false;
+
+            foreach (TestModel model in treeView.SelectedItems)
+            {
+                if (model.IsGroup || _testSource.ModelCollection.Contains(model))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private void UnGroupToItems()
+        {
+            if (!CanUnGroup())
+                return;
+
+            var selectedItems = treeView.SelectedItems;
+
+            for (int i = 0; i < _testSource.ModelCollection.Count; i++)
+            {
+                var model = _testSource.ModelCollection[i];
+                if (!model.IsGroup || model.ModelCollection.Count == 0)
+                    continue;
+
+                int newCount = 0;
+
+                for (int j = model.ModelCollection.Count - 1; j >= 0; j--)
+                {
+                    var childModel = model.ModelCollection[j];
+                    if (!selectedItems.Contains(childModel))
+                        continue;
+
+                    model.ModelCollection.RemoveAt(j);
+
+                    childModel.IsSelected = true;
+                    if (i + 1 < _testSource.ModelCollection.Count)
+                        _testSource.ModelCollection.Insert(i + 1, childModel);
+                    else
+                        _testSource.ModelCollection.Add(childModel);
+
+                    newCount++;
+                }
+
+                if (model.ModelCollection.Count < 2)
+                {
+                    if (model.ModelCollection.Count == 1)
+                    {
+                        var childModel = model.ModelCollection[0];
+
+                        childModel.IsSelected = true;
+                        _testSource.ModelCollection.Insert(i + 1, childModel);
+                        model.ModelCollection.Clear();
+
+                        newCount++;
+                    }
+
+                    newCount--;
+                    _testSource.ModelCollection.RemoveAt(i);
+                }
+
+                i += newCount;
+            }
+
+            _testSource.ItemsChangedFlag = !_testSource.ItemsChangedFlag;
+        }
+
+        #endregion
         private void MouseLeftButtonDownEventHandler(object sender, MouseButtonEventArgs e)
         {
             if (!treeView.HasItems)
@@ -628,6 +799,25 @@ namespace TestMultiSelectTreeView
         private Size GetOverlapSize(Rect rect1, Rect rect2)
         {
             return Rect.Intersect(rect1, rect2).Size;
+        }
+
+        private void treeView_KeyDown(object sender, KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case Key.G:
+                    // Ctrl-Fowardslash = Select All
+                    if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control && (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+                    {
+                        UnGroupToItems();
+                    }
+                    else if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+                    {
+                        GroupFromItems();
+                    }
+
+                    break;
+            }
         }
     }
 }
