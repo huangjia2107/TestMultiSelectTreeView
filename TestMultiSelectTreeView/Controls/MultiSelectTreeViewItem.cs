@@ -728,6 +728,53 @@ namespace TestMultiSelectTreeView.Controls
             return null;
         }
 
+        public int InDepth()
+        {
+            int i = 1;
+            var parent = ItemsControl.ItemsControlFromItemContainer(this);
+
+            while (parent is MultiSelectTreeViewItem)
+            {
+                i++;
+                parent = ItemsControl.ItemsControlFromItemContainer(parent);
+            }
+
+            return i;
+        }
+
+        private void SubItemsMaxDepth(ref int subtreeDepth)
+        {
+            if (!HasItems)
+                subtreeDepth = 0;
+            else
+            {
+                for (int i = 0; i < Items.Count; i++)
+                {
+                    var curMaxDepth = 0;
+                    var container = ItemContainerGenerator.ContainerFromIndex(i) as MultiSelectTreeViewItem;
+
+                    container.SubItemsMaxDepth(ref curMaxDepth);
+
+                    subtreeDepth = Math.Max(subtreeDepth, curMaxDepth);
+                }
+
+                subtreeDepth++;
+            }
+        }
+
+        public int ContainDepth()
+        {
+            if (!HasItems)
+                return 0;
+            else
+            {
+                var curSubtreeDepth = 0;
+
+                SubItemsMaxDepth(ref curSubtreeDepth);
+                return curSubtreeDepth;
+            }
+        }
+        
         #endregion
     }
 }
