@@ -28,6 +28,23 @@ namespace TestMultiSelectTreeView.Adorners
             InvalidateVisual();
         }
 
+        /*
+        public ImageSource RenderVisualToBitmap(Visual visual, int width, int height)
+        {
+            var drawingVisual = new DrawingVisual();
+            using (var context = drawingVisual.RenderOpen())
+            {
+                var contentBounds = VisualTreeHelper.GetDescendantBounds(visual);
+                context.DrawRectangle(new VisualBrush(visual) { Stretch = Stretch.Fill, Viewbox = new Rect(0, 0, width / contentBounds.Width, height / contentBounds.Height) }, new Pen(Brushes.Red, 2), new Rect(0, 0, width, height));
+            }
+
+            var rtb = new RenderTargetBitmap((int)width, (int)height, 96, 96, PixelFormats.Default);
+            rtb.Render(drawingVisual);
+
+            return (ImageSource)rtb.GetAsFrozen();
+        }
+        */
+        
         public RenderTargetBitmap RenderVisualToBitmap(Visual vsual, int width, int height)
         {
             var drawingVisual = new DrawingVisual();
