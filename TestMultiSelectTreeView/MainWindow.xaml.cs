@@ -418,7 +418,7 @@ namespace TestMultiSelectTreeView
             return DoubleUtil.LessThan(dragedRect.Y, dragedItemOriginalPos.Y);
         }
 
-        private bool FindFirstUpItemWithValidOverlap(MultiSelectTreeView rootTreeView, ItemsControl parentItemsControl, int startIndex, Rect draggingRect, ref Size overlapSize, ref Rect overlapContainerRect, ref MultiSelectTreeViewItem overlapContainer)
+        private bool FindFirstUpItemWithValidOverlap(MultiSelectTreeView rootTreeView, ItemsControl parentItemsControl, int startIndex, MultiSelectTreeViewItem draggingContainer, Rect draggingRect, ref Size overlapSize, ref Rect overlapContainerRect, ref MultiSelectTreeViewItem overlapContainer)
         {
             while (startIndex > -1)
             {
@@ -426,9 +426,13 @@ namespace TestMultiSelectTreeView
                 if (upTreeViewItem == null)
                     continue;
 
-                if (upTreeViewItem.HasItems)
+                if (upTreeViewItem.HasItems
+                    && upTreeViewItem.IsExpanded    //for move over the collapsed group
+                    //&& !(upTreeViewItem.DataContext as JOB_INFO).IsLocked    //for IsLocked is false
+                    //&& draggingContainer.ContainDepth() + upTreeViewItem.InDepth() < LogicCenter.JobListMaxDepth    //for tree depth
+                    && ItemsControl.ItemsControlFromItemContainer(draggingContainer) == parentItemsControl)    //for move into first group
                 {
-                    if (FindFirstUpItemWithValidOverlap(rootTreeView, upTreeViewItem, upTreeViewItem.Items.Count - 1, draggingRect, ref overlapSize, ref  overlapContainerRect, ref overlapContainer))
+                    if (FindFirstUpItemWithValidOverlap(rootTreeView, upTreeViewItem, upTreeViewItem.Items.Count - 1, draggingContainer, draggingRect, ref overlapSize, ref  overlapContainerRect, ref overlapContainer))
                         return true;
                 }
                 else
@@ -452,10 +456,10 @@ namespace TestMultiSelectTreeView
                 return false;
 
             var topIndex = superIC.ItemContainerGenerator.IndexFromContainer(parentItemsControl);
-            return FindFirstUpItemWithValidOverlap(rootTreeView, superIC, topIndex - 1, draggingRect, ref overlapSize, ref  overlapContainerRect, ref overlapContainer);
+            return FindFirstUpItemWithValidOverlap(rootTreeView, superIC, topIndex - 1, draggingContainer, draggingRect, ref overlapSize, ref  overlapContainerRect, ref overlapContainer);
         }
 
-        private bool FindFirstDownItemWithValidOverlap(MultiSelectTreeView rootTreeView, ItemsControl parentItemsControl, int startIndex, Rect draggingRect, ref Size overlapSize, ref Rect overlapContainerRect, ref MultiSelectTreeViewItem overlapContainer)
+        private bool FindFirstDownItemWithValidOverlap(MultiSelectTreeView rootTreeView, ItemsControl parentItemsControl, int startIndex, MultiSelectTreeViewItem draggingContainer, Rect draggingRect, ref Size overlapSize, ref Rect overlapContainerRect, ref MultiSelectTreeViewItem overlapContainer)
         {
             while (startIndex < parentItemsControl.Items.Count)
             {
@@ -463,9 +467,13 @@ namespace TestMultiSelectTreeView
                 if (downTreeViewItem == null)
                     continue;
 
-                if (downTreeViewItem.HasItems)
+                if (downTreeViewItem.HasItems
+                    && downTreeViewItem.IsExpanded  //for move over the collapsed group
+                    //&& !(downTreeViewItem.DataContext as JOB_INFO).IsLocked  //for IsLocked is false
+                    //&& draggingContainer.ContainDepth() + downTreeViewItem.InDepth() < LogicCenter.JobListMaxDepth //for tree depth
+                    && ItemsControl.ItemsControlFromItemContainer(draggingContainer) == parentItemsControl)  //for move into first group
                 {
-                    if (FindFirstDownItemWithValidOverlap(rootTreeView, downTreeViewItem, 0, draggingRect, ref overlapSize, ref overlapContainerRect, ref overlapContainer))
+                    if (FindFirstDownItemWithValidOverlap(rootTreeView, downTreeViewItem, 0, draggingContainer, draggingRect, ref overlapSize, ref overlapContainerRect, ref overlapContainer))
                         return true;
                 }
                 else
@@ -489,7 +497,7 @@ namespace TestMultiSelectTreeView
                 return false;
 
             var topIndex = superIC.ItemContainerGenerator.IndexFromContainer(parentItemsControl);
-            return FindFirstDownItemWithValidOverlap(rootTreeView, superIC, topIndex + 1, draggingRect, ref overlapSize, ref  overlapContainerRect, ref overlapContainer);
+            return FindFirstDownItemWithValidOverlap(rootTreeView, superIC, topIndex + 1, draggingContainer, draggingRect, ref overlapSize, ref  overlapContainerRect, ref overlapContainer);
         }
 
         private bool IsFromGroup(ItemsControl parentItemsControl)
@@ -622,7 +630,7 @@ namespace TestMultiSelectTreeView
                 return true;
             }
 
-            if (!FindFirstUpItemWithValidOverlap(rootTreeView, sourceItemsControl, sourceIndex - 1, draggingRect, ref overlapSize, ref overlapItemRect, ref overlapContainer))
+            if (!FindFirstUpItemWithValidOverlap(rootTreeView, sourceItemsControl, sourceIndex - 1, draggingContainer, draggingRect, ref overlapSize, ref overlapItemRect, ref overlapContainer))
                 return false;
 
             var targetItemsControl = ItemsControl.ItemsControlFromItemContainer(overlapContainer);
@@ -716,7 +724,7 @@ namespace TestMultiSelectTreeView
                 return true;
             }
 
-            if (!FindFirstDownItemWithValidOverlap(rootTreeView, sourceItemsControl, sourceIndex + 1, draggingRect, ref overlapSize, ref overlapItemRect, ref overlapContainer))
+            if (!FindFirstDownItemWithValidOverlap(rootTreeView, sourceItemsControl, sourceIndex + 1, draggingContainer, draggingRect, ref overlapSize, ref overlapItemRect, ref overlapContainer))
                 return false;
 
             var targetItemsControl = ItemsControl.ItemsControlFromItemContainer(overlapContainer);
