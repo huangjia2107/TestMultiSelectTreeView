@@ -770,6 +770,9 @@ namespace TestMultiSelectTreeView
 
         private void Move()
         {
+            if (_draggingContainer.ItemContainerGenerator.Status != GeneratorStatus.ContainersGenerated)
+                return;
+                
             var screenPos = new Win32.POINT();
             if (!Win32.GetCursorPos(ref screenPos))
                 return;
