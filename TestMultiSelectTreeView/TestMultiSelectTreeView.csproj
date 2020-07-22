@@ -63,6 +63,7 @@
     <Compile Include="Controls\MultiSelectTreeViewItem.cs" />
     <Compile Include="Helps\Converters.cs" />
     <Compile Include="Helps\DoubleUtil.cs" />
+    <Compile Include="Helps\TreeViewDragHelper.cs" />
     <Compile Include="Helps\Utils.cs" />
     <Compile Include="Helps\Win32.cs" />
     <Compile Include="MainWindow.xaml.cs">
