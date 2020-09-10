@@ -70,7 +70,7 @@ namespace TestMultiSelectTreeView.Helps
 
         public void ManualHandleMouseLeftButtonDown(TItem treeViewItem, MouseButtonEventArgs e)
         {
-            if (!_treeView.HasItems)
+            if (!_treeView.HasItems || e.OriginalSource.GetType().Name == "TextBoxView")
                 return;
 
             _mouseDownPos = e.GetPosition(_treeView);
@@ -88,7 +88,7 @@ namespace TestMultiSelectTreeView.Helps
 
         private void OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (!_treeView.HasItems)
+            if (!_treeView.HasItems || e.OriginalSource.GetType().Name == "TextBoxView")
                 return;
 
             _mouseDownPos = e.GetPosition(_treeView);
